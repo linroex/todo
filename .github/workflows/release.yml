@@ -21,9 +21,9 @@ jobs:
       - run: npm run build
 
       - name: Package build output
-        run: tar -czf todo-${{ github.event.release.tag_name }}.tar.gz -C dist .
+        run: cd dist && zip -r ../todo-${{ github.event.release.tag_name }}.zip .
 
       - name: Upload to release
-        run: gh release upload ${{ github.event.release.tag_name }} todo-${{ github.event.release.tag_name }}.tar.gz --clobber
+        run: gh release upload ${{ github.event.release.tag_name }} todo-${{ github.event.release.tag_name }}.zip --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
