@@ -14,7 +14,7 @@ function removeModuleType() {
 
 export default defineConfig({
   plugins: [vue(), removeModuleType()],
-  base: '/todo/',
+  base: process.env.VITE_BASE || './',
   build: {
     modulePreload: { polyfill: false },
     rollupOptions: {
