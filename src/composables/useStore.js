@@ -222,7 +222,15 @@ export function useStore() {
 
   function toggleTodo(id) {
     const todo = state.todos.find((t) => t.id === id)
-    if (todo) todo.completed = !todo.completed
+    if (!todo) return
+    todo.completed = !todo.completed
+
+    // When completed, move to bottom of the list
+    if (todo.completed) {
+      const siblings = state.todos.filter((t) => t.listId === todo.listId)
+      const maxOrder = Math.max(...siblings.map((t) => t.order))
+      todo.order = maxOrder + 1
+    }
   }
 
   // --- Reorder ---
