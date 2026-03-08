@@ -1,9 +1,35 @@
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { state, activeList, activeTodos, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, reorderTodos, setFilter, setTagFilter } = useStore()
+const { state, activeList, activeTodos, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, reorderTodos, setFilter, setSort, setTagFilter } = useStore()
+
+const dateFilters = ['scheduled-today', 'due-today', 'overdue', 'has-scheduled', 'has-due']
+const showSort = computed(() => dateFilters.includes(state.filter))
+const canDrag = computed(() => state.sort === 'order' && state.filter === 'all' && !state.tagFilter)
+
+const sortOptions = computed(() => {
+  const scheduledFilters = ['scheduled-today', 'has-scheduled']
+  const dueFilters = ['due-today', 'has-due', 'overdue']
+  const opts = [{ value: 'order', label: '預設排序' }]
+  if (scheduledFilters.includes(state.filter)) {
+    opts.push({ value: 'scheduled-asc', label: '執行日期 早→晚' })
+    opts.push({ value: 'scheduled-desc', label: '執行日期 晚→早' })
+  }
+  if (dueFilters.includes(state.filter)) {
+    opts.push({ value: 'due-asc', label: '截止日 早→晚' })
+    opts.push({ value: 'due-desc', label: '截止日 晚→早' })
+  }
+  // For filters that could have both dates, show all options
+  if (!scheduledFilters.includes(state.filter) && !dueFilters.includes(state.filter)) {
+    opts.push({ value: 'scheduled-asc', label: '執行日期 早→晚' })
+    opts.push({ value: 'scheduled-desc', label: '執行日期 晚→早' })
+    opts.push({ value: 'due-asc', label: '截止日 早→晚' })
+    opts.push({ value: 'due-desc', label: '截止日 晚→早' })
+  }
+  return opts
+})
 
 const selectedTodoId = ref(null)
 
@@ -70,6 +96,8 @@ function reorderSelected(direction) {
 }
 
 function handleContainerKeydown(e) {
+  const tag = e.target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return
   const mod = e.metaKey || e.ctrlKey
   if (e.key === 'ArrowUp' && mod) {
     e.preventDefault()
@@ -83,16 +111,17 @@ function handleContainerKeydown(e) {
   } else if (e.key === 'ArrowDown') {
     e.preventDefault()
     moveSelection('down')
-  } else if (e.key === 'Enter' && selectedTodoId.value && e.target.tagName !== 'INPUT') {
+  } else if (e.key === 'Enter' && selectedTodoId.value) {
     e.preventDefault()
     todoItemRefs.value[selectedTodoId.value]?.startEdit()
-  } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTodoId.value && e.target.tagName !== 'INPUT') {
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTodoId.value) {
     e.preventDefault()
     const todos = activeTodos.value
     const currentIndex = todos.findIndex((t) => t.id === selectedTodoId.value)
-    deleteTodo(selectedTodoId.value)
-    // Select next or previous item
-    const remaining = todos.filter((t) => t.id !== selectedTodoId.value)
+    const deletedId = selectedTodoId.value
+    deleteTodo(deletedId)
+    // Select next or previous item from the updated list
+    const remaining = activeTodos.value
     if (remaining.length > 0) {
       const newIndex = Math.min(currentIndex, remaining.length - 1)
       selectedTodoId.value = remaining[newIndex].id
@@ -201,6 +230,19 @@ function getDragClass(index, todoId) {
         </el-radio-group>
       </div>
 
+      <div v-if="showSort" class="todo-sort-bar">
+        <span class="sort-label">排序：</span>
+        <el-radio-group v-model="state.sort" size="small" @change="setSort">
+          <el-radio-button
+            v-for="opt in sortOptions"
+            :key="opt.value"
+            :value="opt.value"
+          >
+            {{ opt.label }}
+          </el-radio-button>
+        </el-radio-group>
+      </div>
+
       <div v-if="activeListTags.length > 0" class="todo-tag-filter-bar">
         <span class="tag-filter-label">標籤篩選：</span>
         <el-tag
@@ -243,7 +285,8 @@ function getDragClass(index, todoId) {
           :ref="(el) => setItemRef(todo.id, el)"
           :todo="todo"
           :selected="selectedTodoId === todo.id"
-          :class="getDragClass(index, todo.id)"
+          :class="canDrag ? getDragClass(index, todo.id) : ''"
+          :draggable="canDrag"
           :auto-edit="insertEditId === todo.id"
           @select="selectTodo(todo.id)"
           @insert-below="insertBelow(todo.id)"

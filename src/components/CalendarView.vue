@@ -80,6 +80,7 @@ function onDateClick(cell) {
         <div v-for="todo in selectedTodos" :key="todo.id" class="calendar-todo-item-wrapper">
           <TodoItem
             :todo="todo"
+            :draggable="false"
             @toggle="toggleTodo(todo.id)"
             @update="(updates) => updateTodo(todo.id, updates)"
             @delete="deleteTodo(todo.id)"

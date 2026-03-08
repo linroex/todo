@@ -111,6 +111,19 @@ html, body, #app {
   padding: 0 24px 12px;
 }
 
+.todo-sort-bar {
+  padding: 0 24px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
 .todo-container {
   flex: 1;
   overflow-y: auto;
@@ -220,6 +233,10 @@ html, body, #app {
 
 .todo-dates .overdue {
   color: var(--color-danger);
+}
+
+.todo-dates .completed-date {
+  color: #67c23a;
 }
 
 .todo-actions {

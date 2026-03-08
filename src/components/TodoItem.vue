@@ -6,6 +6,7 @@ const props = defineProps({
   todo: { type: Object, required: true },
   selected: { type: Boolean, default: false },
   autoEdit: { type: Boolean, default: false },
+  draggable: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted'])
@@ -38,9 +39,11 @@ function startEdit() {
 function confirmEdit() {
   const trimmed = editTitle.value.trim()
   if (!trimmed) {
-    // Empty title — if it was a new blank item, delete it
+    // Empty title — revert to original; if it was a new blank item, delete it
     if (!props.todo.title) {
       emit('delete')
+    } else {
+      editTitle.value = props.todo.title
     }
   } else if (trimmed !== props.todo.title) {
     emit('update', { title: trimmed })
@@ -58,14 +61,17 @@ function cancelEdit() {
   editing.value = false
 }
 
-const today = new Date().toISOString().slice(0, 10)
-
 const isOverdue = computed(() => {
+  const today = new Date().toISOString().slice(0, 10)
   return props.todo.dueDate && !props.todo.completed && props.todo.dueDate < today
 })
 
 const scheduledLabel = computed(() => props.todo.scheduledDate)
 const dueLabel = computed(() => props.todo.dueDate)
+const completedLabel = computed(() => {
+  if (!props.todo.completedAt) return null
+  return props.todo.completedAt.slice(0, 10)
+})
 
 defineExpose({
   focus() {
@@ -97,16 +103,16 @@ function onDragOver(e) {
     class="todo-item"
     :class="{ selected }"
     tabindex="0"
-    draggable="true"
+    :draggable="draggable"
     @click="emit('select')"
-    @keydown.space.prevent="emit('insert-below')"
+    @keydown.space.self.prevent="emit('insert-below')"
     @dragstart="onDragStart"
     @dragenter="onDragEnter"
     @dragover="onDragOver"
     @dragend="emit('dragend')"
   >
     <div class="todo-row">
-      <span class="drag-handle">
+      <span v-if="draggable" class="drag-handle">
         <el-icon :size="16"><Rank /></el-icon>
       </span>
 
@@ -138,6 +144,9 @@ function onDragOver(e) {
       </div>
 
       <div class="todo-dates">
+        <span v-if="completedLabel" class="completed-date" title="完成日期">
+          ✓ {{ completedLabel }}
+        </span>
         <span v-if="scheduledLabel" title="預計執行日期">
           {{ scheduledLabel }}
         </span>

@@ -19,8 +19,9 @@ const state = reactive({
   todos: loadJSON(STORAGE_KEY_TODOS, []),
   activeListId: null,
   filter: 'all', // 'all' | 'scheduled-today' | 'due-today' | 'overdue' | 'has-scheduled' | 'has-due'
+  sort: 'order', // 'order' | 'scheduled-asc' | 'scheduled-desc' | 'due-asc' | 'due-desc'
   tagFilter: null, // null = all, or a tag string
-  view: 'list', // 'list' | 'calendar'
+  view: 'list', // 'list' | 'calendar' | 'today' | 'weekly-review'
 })
 
 // Initialize activeListId
@@ -29,11 +30,11 @@ state.activeListId = state.lists.length > 0 ? state.lists[0].id : null
 // Persist to localStorage
 watch(() => state.lists, (val) => {
   localStorage.setItem(STORAGE_KEY_LISTS, JSON.stringify(val))
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 watch(() => state.todos, (val) => {
   localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(val))
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 export function useStore() {
   // --- Computed ---
@@ -70,6 +71,20 @@ export function useStore() {
       base = base.filter((t) => t.tags && t.tags.includes(state.tagFilter))
     }
 
+    if (state.sort !== 'order') {
+      const [field, dir] = state.sort.split('-')
+      const key = field === 'scheduled' ? 'scheduledDate' : 'dueDate'
+      const mul = dir === 'asc' ? 1 : -1
+      base = [...base].sort((a, b) => {
+        const da = a[key] || ''
+        const db = b[key] || ''
+        if (!da && !db) return 0
+        if (!da) return 1
+        if (!db) return -1
+        return (da < db ? -1 : da > db ? 1 : 0) * mul
+      })
+    }
+
     return base
   })
 
@@ -84,6 +99,13 @@ export function useStore() {
   const allTodosWithDates = computed(() =>
     state.todos.filter((t) => t.scheduledDate || t.dueDate)
   )
+
+  const todayTodos = computed(() => {
+    const d = today.value
+    return state.todos
+      .filter((t) => !t.completed && (t.scheduledDate === d || t.dueDate === d))
+      .sort((a, b) => a.order - b.order)
+  })
 
   // --- View ---
   function setView(v) {
@@ -112,6 +134,11 @@ export function useStore() {
 
   function setFilter(filter) {
     state.filter = filter
+    state.sort = 'order'
+  }
+
+  function setSort(sort) {
+    state.sort = sort
   }
 
   function setTagFilter(tag) {
@@ -156,6 +183,9 @@ export function useStore() {
 
   function setActiveList(id) {
     state.activeListId = id
+    state.filter = 'all'
+    state.sort = 'order'
+    state.tagFilter = null
   }
 
   // --- Todo CRUD ---
@@ -171,6 +201,7 @@ export function useStore() {
       title,
       note: '',
       completed: false,
+      completedAt: null,
       scheduledDate: null,
       dueDate: null,
       tags: [],
@@ -195,6 +226,7 @@ export function useStore() {
       title,
       note: '',
       completed: false,
+      completedAt: null,
       scheduledDate: null,
       dueDate: null,
       tags: [],
@@ -224,6 +256,7 @@ export function useStore() {
     const todo = state.todos.find((t) => t.id === id)
     if (!todo) return
     todo.completed = !todo.completed
+    todo.completedAt = todo.completed ? new Date().toISOString() : null
 
     // When completed, move to bottom of the list
     if (todo.completed) {
@@ -235,21 +268,61 @@ export function useStore() {
 
   // --- Reorder ---
   function reorderTodos(fromIndex, toIndex) {
-    const list = activeTodos.value
-    if (fromIndex < 0 || fromIndex >= list.length) return
-    if (toIndex < 0 || toIndex >= list.length) return
+    const filtered = activeTodos.value
+    if (fromIndex < 0 || fromIndex >= filtered.length) return
+    if (toIndex < 0 || toIndex >= filtered.length) return
     if (fromIndex === toIndex) return
 
-    // Get the actual todo ids in current sorted order
-    const ids = list.map((t) => t.id)
-    const [movedId] = ids.splice(fromIndex, 1)
-    ids.splice(toIndex, 0, movedId)
+    // Work with all todos in the active list, sorted by order
+    const allInList = state.todos
+      .filter((t) => t.listId === state.activeListId)
+      .sort((a, b) => a.order - b.order)
 
-    // Reassign order values
+    // Find the actual positions in the full list
+    const movedTodo = filtered[fromIndex]
+    const targetTodo = filtered[toIndex]
+    const fullFromIndex = allInList.findIndex((t) => t.id === movedTodo.id)
+    const fullToIndex = allInList.findIndex((t) => t.id === targetTodo.id)
+
+    // Reorder in the full list
+    const ids = allInList.map((t) => t.id)
+    const [movedId] = ids.splice(fullFromIndex, 1)
+    ids.splice(fullToIndex, 0, movedId)
+
+    // Reassign order values for all todos in the list
     ids.forEach((id, i) => {
       const todo = state.todos.find((t) => t.id === id)
       if (todo) todo.order = i
     })
+  }
+
+  // --- Weekly Review ---
+  function getWeekRange(offset) {
+    const now = new Date()
+    const day = now.getDay() // 0=Sun, 1=Mon, ...
+    const diffToMonday = day === 0 ? -6 : 1 - day
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + diffToMonday + offset * 7)
+    monday.setHours(0, 0, 0, 0)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    const fmt = (d) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${dd}`
+    }
+    return { start: fmt(monday), end: fmt(sunday) }
+  }
+
+  function getCompletedInWeek(weekStart, weekEnd) {
+    return state.todos
+      .filter((t) => {
+        if (!t.completed || !t.completedAt) return false
+        const d = t.completedAt.slice(0, 10)
+        return d >= weekStart && d <= weekEnd
+      })
+      .sort((a, b) => a.completedAt.localeCompare(b.completedAt))
   }
 
   return {
@@ -259,6 +332,7 @@ export function useStore() {
     activeTodos,
     activeListTags,
     allTodosWithDates,
+    todayTodos,
     addList,
     renameList,
     deleteList,
@@ -273,8 +347,11 @@ export function useStore() {
     toggleTodo,
     reorderTodos,
     setFilter,
+    setSort,
     setTagFilter,
     moveTodoToList,
     getNotifications,
+    getWeekRange,
+    getCompletedInWeek,
   }
 }
