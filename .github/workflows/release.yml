@@ -19,8 +19,6 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-        env:
-          VITE_BASE: /todo/
 
       - name: Package build output
         run: cd dist && zip -r ../todo-${{ github.event.release.tag_name }}.zip .
