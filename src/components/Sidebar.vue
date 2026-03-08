@@ -74,11 +74,29 @@ function cancelRename() {
 
     <div
       class="list-item"
+      :class="{ active: state.view === 'today' }"
+      @click="setView('today')"
+    >
+      <el-icon :size="16"><Sunrise /></el-icon>
+      <span class="list-name">今日待辦</span>
+    </div>
+
+    <div
+      class="list-item"
       :class="{ active: state.view === 'calendar' }"
       @click="setView('calendar')"
     >
       <el-icon :size="16"><Calendar /></el-icon>
       <span class="list-name">行事曆</span>
+    </div>
+
+    <div
+      class="list-item"
+      :class="{ active: state.view === 'weekly-review' }"
+      @click="setView('weekly-review')"
+    >
+      <el-icon :size="16"><Finished /></el-icon>
+      <span class="list-name">週報回顧</span>
     </div>
 
     <div class="sidebar-divider"></div>
@@ -88,7 +106,7 @@ function cancelRename() {
         v-for="list in sortedLists"
         :key="list.id"
         class="list-item"
-        :class="{ active: state.activeListId === list.id, 'drop-target': dragOverListId === list.id }"
+        :class="{ active: state.activeListId === list.id && state.view === 'list', 'drop-target': dragOverListId === list.id }"
         @click="setActiveList(list.id); setView('list')"
         @dragover="(e) => onListDragOver(e, list.id)"
         @dragleave="onListDragLeave(list.id)"

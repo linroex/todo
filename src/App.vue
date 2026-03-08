@@ -4,6 +4,8 @@ import { ElNotification } from 'element-plus'
 import Sidebar from './components/Sidebar.vue'
 import TodoList from './components/TodoList.vue'
 import CalendarView from './components/CalendarView.vue'
+import TodayView from './components/TodayView.vue'
+import WeeklyReviewView from './components/WeeklyReviewView.vue'
 import { useStore } from './composables/useStore.js'
 
 const { state, getNotifications } = useStore()
@@ -42,6 +44,8 @@ onMounted(() => {
 
 <template>
   <Sidebar />
-  <TodoList v-if="state.view === 'list'" />
+  <TodayView v-if="state.view === 'today'" />
+  <TodoList v-else-if="state.view === 'list'" />
   <CalendarView v-else-if="state.view === 'calendar'" />
+  <WeeklyReviewView v-else-if="state.view === 'weekly-review'" />
 </template>
