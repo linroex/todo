@@ -356,11 +356,16 @@ html, body, #app {
 /* Calendar view */
 .calendar-container {
   padding: 0 24px;
-  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .calendar-container .el-calendar {
   --el-calendar-border: 1px solid var(--color-border);
+}
+
+.calendar-container .el-calendar-table .el-calendar-day {
+  height: 48px;
+  padding: 0;
 }
 
 .calendar-cell {
@@ -368,18 +373,18 @@ html, body, #app {
   flex-direction: column;
   align-items: center;
   height: 100%;
-  padding-top: 4px;
+  padding-top: 2px;
   cursor: pointer;
 }
 
 .calendar-day {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .calendar-day.is-selected-date {
@@ -394,8 +399,8 @@ html, body, #app {
 }
 
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
 }
 
