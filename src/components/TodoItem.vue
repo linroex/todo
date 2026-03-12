@@ -7,6 +7,7 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
   autoEdit: { type: Boolean, default: false },
   draggable: { type: Boolean, default: true },
+  showDates: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted'])
@@ -143,7 +144,7 @@ function onDragOver(e) {
         <el-tag v-for="tag in todo.tags" :key="tag" size="small" type="info" class="todo-tag">{{ tag }}</el-tag>
       </div>
 
-      <div class="todo-dates">
+      <div class="todo-dates" v-if="showDates">
         <span v-if="completedLabel" class="completed-date" title="完成日期">
           ✓ {{ completedLabel }}
         </span>

@@ -104,7 +104,12 @@ export function useStore() {
     const d = today.value
     return state.todos
       .filter((t) => !t.completed && (t.scheduledDate === d || t.dueDate === d))
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => {
+        const ao = (a.todayOrder && a.todayOrder.date === d) ? a.todayOrder.order : Infinity
+        const bo = (b.todayOrder && b.todayOrder.date === d) ? b.todayOrder.order : Infinity
+        if (ao !== bo) return ao - bo
+        return a.order - b.order
+      })
   })
 
   // --- View ---
@@ -205,6 +210,7 @@ export function useStore() {
       scheduledDate: null,
       dueDate: null,
       tags: [],
+      todayOrder: null,
       order: 0,
       createdAt: new Date().toISOString(),
     }
@@ -230,6 +236,7 @@ export function useStore() {
       scheduledDate: null,
       dueDate: null,
       tags: [],
+      todayOrder: null,
       order: insertOrder,
       createdAt: new Date().toISOString(),
     }
@@ -296,6 +303,24 @@ export function useStore() {
     })
   }
 
+  // --- Today Reorder ---
+  function reorderTodayTodos(fromIndex, toIndex) {
+    const list = todayTodos.value
+    if (fromIndex < 0 || fromIndex >= list.length) return
+    if (toIndex < 0 || toIndex >= list.length) return
+    if (fromIndex === toIndex) return
+
+    const d = today.value
+    const ids = list.map((t) => t.id)
+    const [movedId] = ids.splice(fromIndex, 1)
+    ids.splice(toIndex, 0, movedId)
+
+    ids.forEach((id, i) => {
+      const todo = state.todos.find((t) => t.id === id)
+      if (todo) todo.todayOrder = { date: d, order: i }
+    })
+  }
+
   // --- Weekly Review ---
   function getWeekRange(offset) {
     const now = new Date()
@@ -346,6 +371,7 @@ export function useStore() {
     deleteTodo,
     toggleTodo,
     reorderTodos,
+    reorderTodayTodos,
     setFilter,
     setSort,
     setTagFilter,
