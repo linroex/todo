@@ -5,7 +5,7 @@ import TodoItem from './TodoItem.vue'
 const {
   state, changeTodoGroups,
   toggleTodo, updateTodo, deleteTodo, scheduleToday,
-  toggleChange, updateChangeStatus, scheduleChangeThisWeek,
+  toggleChange, updateChangeStatus, scheduleChangeWeek,
   reportChangeWeek, setChangeStatusFilter,
   getListName, parseWeekCode, getWeekCode,
 } = useStore()
@@ -82,7 +82,7 @@ function hasUnreported(group) {
             @schedule-today="scheduleToday(todo.id)"
             @toggle-change="toggleChange(todo.id)"
             @update-change-status="(s) => updateChangeStatus(todo.id, s)"
-            @schedule-change-week="scheduleChangeThisWeek(todo.id)"
+            @schedule-change-week="(week) => scheduleChangeWeek(todo.id, week)"
           />
         </div>
       </div>

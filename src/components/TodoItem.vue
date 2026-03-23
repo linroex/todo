@@ -13,6 +13,11 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted', 'schedule-today', 'toggle-change', 'update-change-status', 'schedule-change-week'])
 
+import { useStore } from '../composables/useStore.js'
+const { getWeekOptions, getWeekCode } = useStore()
+const weekOptions = getWeekOptions()
+const currentWeek = getWeekCode()
+
 const changeStatusTagType = {
   unscheduled: 'info',
   scheduled: 'warning',
@@ -225,14 +230,27 @@ function onDragOver(e) {
             @click.stop="emit('toggle-change')"
           />
         </el-tooltip>
-        <el-tooltip v-if="!todo.completed" content="排到本週 Change" placement="top">
-          <el-button
-            icon="SetUp"
-            size="small"
-            text
-            @click.stop="emit('schedule-change-week')"
-          />
-        </el-tooltip>
+        <el-dropdown
+          v-if="!todo.completed"
+          trigger="click"
+          @command="(week) => emit('schedule-change-week', week)"
+          @click.stop
+        >
+          <el-button icon="SetUp" size="small" text />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="opt in weekOptions"
+                :key="opt.value"
+                :command="opt.value"
+                :class="{ 'is-active': todo.changeWeek === opt.value }"
+              >
+                {{ opt.label }}
+                <span v-if="opt.value === currentWeek" style="color: var(--el-color-success); margin-left: 4px">本週</span>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-tooltip v-if="!todo.completed" :content="isScheduledToday ? '取消今日排程' : '排到今天'" placement="top">
           <el-button
             icon="Sunny"

@@ -27,6 +27,13 @@ const state = reactive({
   hideFutureTodos: false,
 })
 
+// Migrate old lowercase week codes to uppercase
+state.todos.forEach((t) => {
+  if (t.changeWeek && t.changeWeek.startsWith('w')) {
+    t.changeWeek = 'W' + t.changeWeek.slice(1)
+  }
+})
+
 // Initialize activeListId
 state.activeListId = state.lists.length > 0 ? state.lists[0].id : null
 
@@ -281,15 +288,14 @@ export function useStore() {
     }
   }
 
-  function scheduleChangeThisWeek(todoId) {
+  function scheduleChangeWeek(todoId, weekCode) {
     const todo = state.todos.find((t) => t.id === todoId)
     if (!todo) return
     if (!todo.isChange) {
       todo.isChange = true
       todo.changeStatus = 'scheduled'
     }
-    const week = getWeekCode()
-    todo.changeWeek = week
+    todo.changeWeek = weekCode
     if (todo.changeStatus === 'unscheduled') {
       todo.changeStatus = 'scheduled'
     }
@@ -627,7 +633,7 @@ export function useStore() {
     toggleChange,
     updateChangeStatus,
     updateChangeWeek,
-    scheduleChangeThisWeek,
+    scheduleChangeWeek,
     reportChangeWeek,
     setChangeStatusFilter,
     getWeekCode,
