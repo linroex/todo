@@ -10,7 +10,7 @@ const props = defineProps({
   showDates: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted'])
+const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted', 'schedule-today'])
 
 const expanded = ref(false)
 const editing = ref(false)
@@ -62,9 +62,12 @@ function cancelEdit() {
   editing.value = false
 }
 
+const today = computed(() => new Date().toISOString().slice(0, 10))
+
+const isScheduledToday = computed(() => props.todo.scheduledDate === today.value)
+
 const isOverdue = computed(() => {
-  const today = new Date().toISOString().slice(0, 10)
-  return props.todo.dueDate && !props.todo.completed && props.todo.dueDate < today
+  return props.todo.dueDate && !props.todo.completed && props.todo.dueDate < today.value
 })
 
 const scheduledLabel = computed(() => props.todo.scheduledDate)
@@ -157,6 +160,15 @@ function onDragOver(e) {
       </div>
 
       <div class="todo-actions">
+        <el-tooltip v-if="!todo.completed" :content="isScheduledToday ? '取消今日排程' : '排到今天'" placement="top">
+          <el-button
+            icon="Sunny"
+            size="small"
+            text
+            :type="isScheduledToday ? 'warning' : ''"
+            @click.stop="emit('schedule-today')"
+          />
+        </el-tooltip>
         <el-button
           :icon="expanded ? 'ArrowUp' : 'ArrowDown'"
           size="small"

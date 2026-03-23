@@ -3,7 +3,7 @@ import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { todayTodos, toggleTodo, updateTodo, deleteTodo, reorderTodayTodos } = useStore()
+const { todayTodos, toggleTodo, updateTodo, deleteTodo, scheduleToday, reorderTodayTodos } = useStore()
 
 // --- Selection ---
 const selectedTodoId = ref(null)
@@ -56,7 +56,10 @@ function handleContainerKeydown(e) {
   const tag = e.target.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
   const mod = e.metaKey || e.ctrlKey
-  if (e.key === 'ArrowUp' && mod) {
+  if (e.key === 't' && !mod && selectedTodoId.value) {
+    e.preventDefault()
+    scheduleToday(selectedTodoId.value)
+  } else if (e.key === 'ArrowUp' && mod) {
     e.preventDefault()
     reorderSelected('up')
   } else if (e.key === 'ArrowDown' && mod) {
@@ -166,6 +169,7 @@ function getDragClass(index, todoId) {
         @toggle="toggleTodo(todo.id)"
         @update="(updates) => updateTodo(todo.id, updates)"
         @delete="deleteTodo(todo.id)"
+        @schedule-today="scheduleToday(todo.id)"
         @dragstart="onDragStart(index, todo.id)"
         @dragenter="(e) => onDragEnter(index, e)"
         @dragend="onDragEnd"
