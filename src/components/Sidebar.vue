@@ -74,6 +74,15 @@ function cancelRename() {
 
     <div
       class="list-item"
+      :class="{ active: state.view === 'search' }"
+      @click="setView('search')"
+    >
+      <el-icon :size="16"><Search /></el-icon>
+      <span class="list-name">搜尋</span>
+    </div>
+
+    <div
+      class="list-item"
       :class="{ active: state.view === 'today' }"
       @click="setView('today')"
     >

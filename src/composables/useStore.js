@@ -21,7 +21,8 @@ const state = reactive({
   filter: 'all', // 'all' | 'scheduled-today' | 'due-today' | 'overdue' | 'has-scheduled' | 'has-due'
   sort: 'order', // 'order' | 'scheduled-asc' | 'scheduled-desc' | 'due-asc' | 'due-desc'
   tagFilter: null, // null = all, or a tag string
-  view: 'list', // 'list' | 'calendar' | 'today' | 'weekly-review'
+  view: 'list', // 'list' | 'calendar' | 'today' | 'weekly-review' | 'search'
+  searchQuery: '',
 })
 
 // Initialize activeListId
@@ -100,6 +101,38 @@ export function useStore() {
     state.todos.filter((t) => t.scheduledDate || t.dueDate)
   )
 
+  const searchResults = computed(() => {
+    const q = state.searchQuery.trim().toLowerCase()
+    if (!q) return []
+    const listIds = new Set(state.lists.map((l) => l.id))
+    const matched = state.todos.filter((t) => {
+      if (!listIds.has(t.listId)) return false
+      if (t.title && t.title.toLowerCase().includes(q)) return true
+      if (t.note && t.note.toLowerCase().includes(q)) return true
+      if (t.tags && t.tags.some((tag) => tag.toLowerCase().includes(q))) return true
+      return false
+    })
+    const groups = {}
+    matched.forEach((t) => {
+      if (!groups[t.listId]) {
+        groups[t.listId] = {
+          listId: t.listId,
+          listName: state.lists.find((l) => l.id === t.listId)?.name || '',
+          todos: [],
+        }
+      }
+      groups[t.listId].todos.push(t)
+    })
+    return Object.values(groups).map((g) => ({
+      ...g,
+      todos: [...g.todos].sort((a, b) => a.order - b.order),
+    }))
+  })
+
+  function setSearchQuery(query) {
+    state.searchQuery = query
+  }
+
   const todayTodos = computed(() => {
     const d = today.value
     return state.todos
@@ -126,6 +159,14 @@ export function useStore() {
   function getListName(listId) {
     const list = state.lists.find((l) => l.id === listId)
     return list ? list.name : ''
+  }
+
+  // --- Schedule Today ---
+  function scheduleToday(todoId) {
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo) return
+    const d = today.value
+    updateTodo(todoId, { scheduledDate: todo.scheduledDate === d ? null : d })
   }
 
   // --- Notifications ---
@@ -355,6 +396,7 @@ export function useStore() {
     sortedLists,
     activeList,
     activeTodos,
+    searchResults,
     activeListTags,
     allTodosWithDates,
     todayTodos,
@@ -370,11 +412,13 @@ export function useStore() {
     updateTodo,
     deleteTodo,
     toggleTodo,
+    scheduleToday,
     reorderTodos,
     reorderTodayTodos,
     setFilter,
     setSort,
     setTagFilter,
+    setSearchQuery,
     moveTodoToList,
     getNotifications,
     getWeekRange,
