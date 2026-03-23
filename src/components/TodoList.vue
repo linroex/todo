@@ -3,7 +3,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { state, activeList, activeTodos, hasFutureTodos, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos } = useStore()
+const { state, activeList, activeTodos, hasFutureTodos, futureTodoCount, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos } = useStore()
 
 const dateFilters = ['scheduled-today', 'due-today', 'overdue', 'has-scheduled', 'has-due']
 const showSort = computed(() => dateFilters.includes(state.filter))
@@ -315,7 +315,7 @@ function getDragClass(index, todoId) {
             @click="toggleHideFutureTodos"
           >
             <el-icon class="el-icon--left"><Hide v-if="!state.hideFutureTodos" /><View v-else /></el-icon>
-            {{ state.hideFutureTodos ? '顯示未來事項' : '隱藏未來事項' }}
+            {{ state.hideFutureTodos ? '顯示未來事項' : '隱藏未來事項' }}（{{ futureTodoCount }}）
           </el-button>
         </div>
       </div>

@@ -94,10 +94,12 @@ export function useStore() {
     return base
   })
 
-  const hasFutureTodos = computed(() => {
+  const futureTodoCount = computed(() => {
     const d = today.value
-    return state.todos.some((t) => t.listId === state.activeListId && t.scheduledDate && t.scheduledDate > d && !t.completed)
+    return state.todos.filter((t) => t.listId === state.activeListId && t.scheduledDate && t.scheduledDate > d && !t.completed).length
   })
+
+  const hasFutureTodos = computed(() => futureTodoCount.value > 0)
 
   function toggleHideFutureTodos() {
     state.hideFutureTodos = !state.hideFutureTodos
@@ -441,6 +443,7 @@ export function useStore() {
     activeList,
     activeTodos,
     hasFutureTodos,
+    futureTodoCount,
     searchResults,
     activeListTags,
     allTodosWithDates,
