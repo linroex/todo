@@ -14,7 +14,7 @@ Vue 3 + Element Plus + Vite 待辦事項管理應用，資料儲存於瀏覽器 
 ```
 src/
   main.js                    # 入口，掛載 ElementPlus 及所有 icons
-  App.vue                    # 根元件，view 切換 (list/calendar/today) + 啟動通知
+  App.vue                    # 根元件，view 切換 (list/calendar/today/search) + 啟動通知
   styles/main.css            # 全域 CSS（CSS 變數、sidebar、todo-item 等）
   composables/useStore.js    # 核心狀態管理 & 所有業務邏輯
   components/
@@ -24,6 +24,7 @@ src/
     TodoDetail.vue           # 展開面板：備註、日期選擇、標籤編輯
     CalendarView.vue         # 日曆視圖：el-calendar + 日期標記點
     TodayView.vue            # 今日待辦聚合視圖
+    SearchView.vue           # 跨清單搜尋視圖：搜尋標題/備註/標籤
 ```
 
 ## 關鍵設計
@@ -58,3 +59,4 @@ npm run preview  # 預覽建置結果
 - Main agent 根據確認後的 spec 進行開發
 - 每次變更完成後，派 Review agent 做 code review
 - Review 結果回報給 main agent，由 main agent 修正問題
+- 開發完成後執行 `npm run build` 確認建置成功
