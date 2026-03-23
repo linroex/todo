@@ -74,8 +74,8 @@ const isOverdue = computed(() => {
   return props.todo.dueDate && !props.todo.completed && props.todo.dueDate < today.value
 })
 
-const scheduledLabel = computed(() => props.todo.scheduledDate)
-const dueLabel = computed(() => props.todo.dueDate)
+const scheduledLabel = computed(() => props.todo.scheduledDate === today.value ? '今天' : props.todo.scheduledDate)
+const dueLabel = computed(() => props.todo.dueDate === today.value ? '今天' : props.todo.dueDate)
 const completedLabel = computed(() => {
   if (!props.todo.completedAt) return null
   return props.todo.completedAt.slice(0, 10)
