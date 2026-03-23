@@ -29,6 +29,10 @@ watch(() => props.autoEdit, (val) => {
   if (val) startEdit()
 })
 
+watch(() => props.selected, (val) => {
+  if (!val) expanded.value = false
+})
+
 function startEdit() {
   editing.value = true
   editTitle.value = props.todo.title
