@@ -5,8 +5,9 @@ import TodoItem from './TodoItem.vue'
 const {
   state, changeTodoGroups,
   toggleTodo, updateTodo, deleteTodo, scheduleToday,
-  toggleChange, updateChangeStatus,
-  setChangeStatusFilter, getListName, parseWeekCode, getWeekCode,
+  toggleChange, updateChangeStatus, scheduleChangeThisWeek,
+  reportChangeWeek, setChangeStatusFilter,
+  getListName, parseWeekCode, getWeekCode,
 } = useStore()
 
 const statusOptions = [
@@ -27,6 +28,10 @@ function getWeekLabel(group) {
 
 function isCurrentWeek(group) {
   return group.weekCode === currentWeek
+}
+
+function hasUnreported(group) {
+  return group.weekCode && group.todos.some((t) => t.changeStatus !== 'reported' && t.changeStatus !== 'done')
 }
 </script>
 
@@ -53,6 +58,15 @@ function isCurrentWeek(group) {
           <span>{{ getWeekLabel(group) }}</span>
           <el-tag v-if="isCurrentWeek(group)" size="small" type="success">本週</el-tag>
           <el-tag size="small" type="info">{{ group.todos.length }}</el-tag>
+          <el-button
+            v-if="hasUnreported(group)"
+            size="small"
+            text
+            type="primary"
+            @click="reportChangeWeek(group.weekCode)"
+          >
+            整週已報告
+          </el-button>
         </div>
 
         <div class="change-group-todos">
@@ -68,6 +82,7 @@ function isCurrentWeek(group) {
             @schedule-today="scheduleToday(todo.id)"
             @toggle-change="toggleChange(todo.id)"
             @update-change-status="(s) => updateChangeStatus(todo.id, s)"
+            @schedule-change-week="scheduleChangeThisWeek(todo.id)"
           />
         </div>
       </div>

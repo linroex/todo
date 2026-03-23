@@ -11,7 +11,7 @@ const props = defineProps({
   listName: { type: String, default: '' },
 })
 
-const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted', 'schedule-today', 'toggle-change', 'update-change-status'])
+const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted', 'schedule-today', 'toggle-change', 'update-change-status', 'schedule-change-week'])
 
 const changeStatusTagType = {
   unscheduled: 'info',
@@ -223,6 +223,14 @@ function onDragOver(e) {
             :type="todo.isChange ? 'warning' : ''"
             :class="{ 'change-flag-active': todo.isChange }"
             @click.stop="emit('toggle-change')"
+          />
+        </el-tooltip>
+        <el-tooltip v-if="!todo.completed" content="排到本週 Change" placement="top">
+          <el-button
+            icon="SetUp"
+            size="small"
+            text
+            @click.stop="emit('schedule-change-week')"
           />
         </el-tooltip>
         <el-tooltip v-if="!todo.completed" :content="isScheduledToday ? '取消今日排程' : '排到今天'" placement="top">

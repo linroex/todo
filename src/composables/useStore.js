@@ -47,11 +47,11 @@ function getWeekCode(date = new Date()) {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
   const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
   const year = d.getUTCFullYear() - 2020
-  return `w${year}${String(weekNo).padStart(2, '0')}`
+  return `W${year}${String(weekNo).padStart(2, '0')}`
 }
 
 function parseWeekCode(code) {
-  const match = code.match(/^w(\d+)(\d{2})$/)
+  const match = code.match(/^W(\d+)(\d{2})$/)
   if (!match) return null
   const year = parseInt(match[1]) + 2020
   const week = parseInt(match[2])
@@ -279,6 +279,28 @@ export function useStore() {
     if (!weekCode && todo.changeStatus === 'scheduled') {
       todo.changeStatus = 'unscheduled'
     }
+  }
+
+  function scheduleChangeThisWeek(todoId) {
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo) return
+    if (!todo.isChange) {
+      todo.isChange = true
+      todo.changeStatus = 'scheduled'
+    }
+    const week = getWeekCode()
+    todo.changeWeek = week
+    if (todo.changeStatus === 'unscheduled') {
+      todo.changeStatus = 'scheduled'
+    }
+  }
+
+  function reportChangeWeek(weekCode) {
+    state.todos.forEach((t) => {
+      if (t.isChange && t.changeWeek === weekCode && t.changeStatus !== 'done') {
+        t.changeStatus = 'reported'
+      }
+    })
   }
 
   function setChangeStatusFilter(filter) {
@@ -605,6 +627,8 @@ export function useStore() {
     toggleChange,
     updateChangeStatus,
     updateChangeWeek,
+    scheduleChangeThisWeek,
+    reportChangeWeek,
     setChangeStatusFilter,
     getWeekCode,
     getWeekOptions,
