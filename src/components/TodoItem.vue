@@ -191,6 +191,7 @@ function onDragOver(e) {
       v-if="expanded"
       :todo="todo"
       @update="(updates) => emit('update', updates)"
+      @click.stop
     />
   </div>
 </template>
