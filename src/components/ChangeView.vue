@@ -1,13 +1,12 @@
 <script setup>
-import { computed } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
 const {
-  state, changeTodoGroups, changeTodoCount,
+  state, changeTodoGroups,
   toggleTodo, updateTodo, deleteTodo, scheduleToday,
-  updateChangeStatus, setActiveList, setView,
-  setChangeStatusFilter, getListName, parseWeekCode,
+  toggleChange, updateChangeStatus,
+  setChangeStatusFilter, getListName, parseWeekCode, getWeekCode,
 } = useStore()
 
 const statusOptions = [
@@ -18,27 +17,7 @@ const statusOptions = [
   { value: 'done', label: '已完成' },
 ]
 
-const statusTagType = {
-  unscheduled: 'info',
-  scheduled: 'warning',
-  reported: 'primary',
-  done: 'success',
-}
-
-const statusLabel = {
-  unscheduled: '未安排',
-  scheduled: '已安排',
-  reported: '已報告',
-  done: '已完成',
-}
-
-const statusOrder = ['unscheduled', 'scheduled', 'reported', 'done']
-
-function cycleStatus(todo) {
-  const idx = statusOrder.indexOf(todo.changeStatus)
-  const next = statusOrder[(idx + 1) % statusOrder.length]
-  updateChangeStatus(todo.id, next)
-}
+const currentWeek = getWeekCode()
 
 function getWeekLabel(group) {
   if (!group.weekCode) return '尚未安排'
@@ -46,9 +25,8 @@ function getWeekLabel(group) {
   return parsed ? `${group.weekCode}（${parsed.start} - ${parsed.end}）` : group.weekCode
 }
 
-function navigateToTodo(todo) {
-  setActiveList(todo.listId)
-  setView('list')
+function isCurrentWeek(group) {
+  return group.weekCode === currentWeek
 }
 </script>
 
@@ -73,44 +51,24 @@ function navigateToTodo(todo) {
         <div class="change-group-header">
           <el-icon :size="16"><Calendar /></el-icon>
           <span>{{ getWeekLabel(group) }}</span>
+          <el-tag v-if="isCurrentWeek(group)" size="small" type="success">本週</el-tag>
           <el-tag size="small" type="info">{{ group.todos.length }}</el-tag>
         </div>
 
         <div class="change-group-todos">
-          <div
+          <TodoItem
             v-for="todo in group.todos"
             :key="todo.id"
-            class="change-result-item"
-          >
-            <TodoItem
-              :todo="todo"
-              :draggable="false"
-              @toggle="toggleTodo(todo.id)"
-              @update="(updates) => updateTodo(todo.id, updates)"
-              @delete="deleteTodo(todo.id)"
-              @schedule-today="scheduleToday(todo.id)"
-            />
-            <div class="change-item-meta">
-              <el-tag
-                :type="statusTagType[todo.changeStatus] ?? 'info'"
-                size="small"
-                class="change-status-tag"
-                @click="cycleStatus(todo)"
-              >
-                {{ statusLabel[todo.changeStatus] ?? '未知' }}
-              </el-tag>
-              <span class="change-item-list">{{ getListName(todo.listId) }}</span>
-              <el-button
-                size="small"
-                text
-                type="primary"
-                @click="navigateToTodo(todo)"
-              >
-                前往清單
-                <el-icon class="el-icon--right"><Right /></el-icon>
-              </el-button>
-            </div>
-          </div>
+            :todo="todo"
+            :draggable="false"
+            :list-name="getListName(todo.listId)"
+            @toggle="toggleTodo(todo.id)"
+            @update="(updates) => updateTodo(todo.id, updates)"
+            @delete="deleteTodo(todo.id)"
+            @schedule-today="scheduleToday(todo.id)"
+            @toggle-change="toggleChange(todo.id)"
+            @update-change-status="(s) => updateChangeStatus(todo.id, s)"
+          />
         </div>
       </div>
     </div>

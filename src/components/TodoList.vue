@@ -3,7 +3,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { state, activeList, activeTodos, hasFutureTodos, futureTodoCount, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos } = useStore()
+const { state, activeList, activeTodos, hasFutureTodos, futureTodoCount, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, toggleChange, updateChangeStatus, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos } = useStore()
 
 const dateFilters = ['scheduled-today', 'due-today', 'overdue', 'has-scheduled', 'has-due']
 const showSort = computed(() => dateFilters.includes(state.filter))
@@ -298,6 +298,8 @@ function getDragClass(index, todoId) {
           @update="(u) => updateTodo(todo.id, u)"
           @delete="deleteTodo(todo.id)"
           @schedule-today="scheduleToday(todo.id)"
+          @toggle-change="toggleChange(todo.id)"
+          @update-change-status="(s) => updateChangeStatus(todo.id, s)"
           @dragstart="onDragStart(index, todo.id)"
           @dragenter="(e) => onDragEnter(index, e)"
           @dragend="onDragEnd"

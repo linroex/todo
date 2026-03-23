@@ -8,9 +8,31 @@ const props = defineProps({
   autoEdit: { type: Boolean, default: false },
   draggable: { type: Boolean, default: true },
   showDates: { type: Boolean, default: true },
+  listName: { type: String, default: '' },
 })
 
-const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted', 'schedule-today'])
+const emit = defineEmits(['toggle', 'update', 'delete', 'dragstart', 'dragenter', 'dragend', 'select', 'insert-below', 'mounted', 'schedule-today', 'toggle-change', 'update-change-status'])
+
+const changeStatusTagType = {
+  unscheduled: 'info',
+  scheduled: 'warning',
+  reported: 'primary',
+  done: 'success',
+}
+
+const changeStatusLabel = {
+  unscheduled: '未安排',
+  scheduled: '已安排',
+  reported: '已報告',
+  done: '已完成',
+}
+
+const changeStatusOptions = [
+  { value: 'unscheduled', label: '未安排' },
+  { value: 'scheduled', label: '已安排' },
+  { value: 'reported', label: '已報告' },
+  { value: 'done', label: '已完成' },
+]
 
 const expanded = ref(false)
 const editing = ref(false)
@@ -147,9 +169,38 @@ function onDragOver(e) {
         {{ todo.title }}
       </span>
 
+      <span v-if="listName" class="todo-list-name">{{ listName }}</span>
+
       <div class="todo-tags" v-if="todo.tags && todo.tags.length">
         <el-tag v-for="tag in todo.tags" :key="tag" size="small" type="info" class="todo-tag">{{ tag }}</el-tag>
       </div>
+
+      <el-dropdown
+        v-if="todo.isChange"
+        trigger="click"
+        @command="(cmd) => emit('update-change-status', cmd)"
+        @click.stop
+      >
+        <el-tag
+          :type="changeStatusTagType[todo.changeStatus] ?? 'info'"
+          size="small"
+          class="change-inline-tag"
+        >
+          {{ changeStatusLabel[todo.changeStatus] ?? '未知' }}
+        </el-tag>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item
+              v-for="opt in changeStatusOptions"
+              :key="opt.value"
+              :command="opt.value"
+              :class="{ 'is-active': todo.changeStatus === opt.value }"
+            >
+              {{ opt.label }}
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
 
       <div class="todo-dates" v-if="showDates">
         <span v-if="completedLabel" class="completed-date" title="完成日期">
@@ -163,7 +214,17 @@ function onDragOver(e) {
         </span>
       </div>
 
-      <div class="todo-actions">
+      <div class="todo-actions" :class="{ 'has-change': todo.isChange }">
+        <el-tooltip :content="todo.isChange ? '取消 Change' : '標記為 Change'" placement="top">
+          <el-button
+            icon="Flag"
+            size="small"
+            text
+            :type="todo.isChange ? 'warning' : ''"
+            :class="{ 'change-flag-active': todo.isChange }"
+            @click.stop="emit('toggle-change')"
+          />
+        </el-tooltip>
         <el-tooltip v-if="!todo.completed" :content="isScheduledToday ? '取消今日排程' : '排到今天'" placement="top">
           <el-button
             icon="Sunny"

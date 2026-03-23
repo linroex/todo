@@ -3,7 +3,7 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { state, searchResults, setSearchQuery, toggleTodo, updateTodo, deleteTodo, scheduleToday, setActiveList, setView } = useStore()
+const { state, searchResults, setSearchQuery, toggleTodo, updateTodo, deleteTodo, scheduleToday, toggleChange, updateChangeStatus, setActiveList, setView } = useStore()
 
 const searchInput = ref(null)
 
@@ -81,6 +81,8 @@ const totalCount = computed(() => {
                 @update="(updates) => updateTodo(todo.id, updates)"
                 @delete="deleteTodo(todo.id)"
                 @schedule-today="scheduleToday(todo.id)"
+                @toggle-change="toggleChange(todo.id)"
+                @update-change-status="(s) => updateChangeStatus(todo.id, s)"
               />
               <div class="search-item-actions">
                 <el-button
