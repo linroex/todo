@@ -23,6 +23,7 @@ const state = reactive({
   tagFilter: null, // null = all, or a tag string
   view: 'list', // 'list' | 'calendar' | 'today' | 'weekly-review' | 'search'
   searchQuery: '',
+  hideFutureTodos: false,
 })
 
 // Initialize activeListId
@@ -68,6 +69,10 @@ export function useStore() {
         base = base.filter((t) => t.dueDate); break
     }
 
+    if (state.hideFutureTodos && state.filter === 'all') {
+      base = base.filter((t) => !t.scheduledDate || t.scheduledDate <= d || t.completed)
+    }
+
     if (state.tagFilter) {
       base = base.filter((t) => t.tags && t.tags.includes(state.tagFilter))
     }
@@ -88,6 +93,15 @@ export function useStore() {
 
     return base
   })
+
+  const hasFutureTodos = computed(() => {
+    const d = today.value
+    return state.todos.some((t) => t.listId === state.activeListId && t.scheduledDate && t.scheduledDate > d && !t.completed)
+  })
+
+  function toggleHideFutureTodos() {
+    state.hideFutureTodos = !state.hideFutureTodos
+  }
 
   const activeListTags = computed(() => {
     const tags = new Set()
@@ -232,6 +246,7 @@ export function useStore() {
     state.filter = 'all'
     state.sort = 'order'
     state.tagFilter = null
+    state.hideFutureTodos = false
   }
 
   // --- Todo CRUD ---
@@ -292,7 +307,36 @@ export function useStore() {
 
   function updateTodo(id, updates) {
     const todo = state.todos.find((t) => t.id === id)
-    if (todo) Object.assign(todo, updates)
+    if (!todo) return
+
+    // Auto-reorder when scheduledDate changes
+    if ('scheduledDate' in updates && updates.scheduledDate !== todo.scheduledDate) {
+      const d = today.value
+      const newDate = updates.scheduledDate
+      const siblings = state.todos.filter((t) => t.listId === todo.listId && t.id !== todo.id)
+
+      if (newDate === d && !todo.completed) {
+        // Move to top: set order before all uncompleted items
+        siblings.forEach((t) => { t.order += 1 })
+        updates.order = 0
+      } else if (newDate && newDate > d) {
+        // Move to bottom: after uncompleted, before completed
+        const uncompleted = siblings.filter((t) => !t.completed)
+        const maxUncompletedOrder = uncompleted.length > 0 ? Math.max(...uncompleted.map((t) => t.order)) : -1
+        updates.order = maxUncompletedOrder + 0.5
+        // Re-normalize after assign
+      }
+    }
+
+    Object.assign(todo, updates)
+
+    // Re-normalize order for the list
+    if ('order' in updates) {
+      const sorted = state.todos
+        .filter((t) => t.listId === todo.listId)
+        .sort((a, b) => a.order - b.order)
+      sorted.forEach((t, i) => { t.order = i })
+    }
   }
 
   function deleteTodo(id) {
@@ -396,6 +440,7 @@ export function useStore() {
     sortedLists,
     activeList,
     activeTodos,
+    hasFutureTodos,
     searchResults,
     activeListTags,
     allTodosWithDates,
@@ -418,6 +463,7 @@ export function useStore() {
     setFilter,
     setSort,
     setTagFilter,
+    toggleHideFutureTodos,
     setSearchQuery,
     moveTodoToList,
     getNotifications,

@@ -3,7 +3,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { state, activeList, activeTodos, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, reorderTodos, setFilter, setSort, setTagFilter } = useStore()
+const { state, activeList, activeTodos, hasFutureTodos, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos } = useStore()
 
 const dateFilters = ['scheduled-today', 'due-today', 'overdue', 'has-scheduled', 'has-due']
 const showSort = computed(() => dateFilters.includes(state.filter))
@@ -305,6 +305,18 @@ function getDragClass(index, todoId) {
 
         <div v-if="activeTodos.length === 0" class="empty-state">
           <el-empty description="沒有待辦事項" />
+        </div>
+
+        <div v-if="state.filter === 'all' && hasFutureTodos" class="hide-future-toggle">
+          <el-button
+            size="small"
+            text
+            type="info"
+            @click="toggleHideFutureTodos"
+          >
+            <el-icon class="el-icon--left"><Hide v-if="!state.hideFutureTodos" /><View v-else /></el-icon>
+            {{ state.hideFutureTodos ? '顯示未來事項' : '隱藏未來事項' }}
+          </el-button>
         </div>
       </div>
     </template>
