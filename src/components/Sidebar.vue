@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useStore } from '../composables/useStore.js'
 
-const { state, sortedLists, addList, renameList, deleteList, setActiveList, setView, moveTodoToList } = useStore()
+const { state, sortedLists, todayTodos, addList, renameList, deleteList, setActiveList, setView, moveTodoToList } = useStore()
 
 const dragOverListId = ref(null)
 
@@ -88,6 +88,7 @@ function cancelRename() {
     >
       <el-icon :size="16"><Sunrise /></el-icon>
       <span class="list-name">今日待辦</span>
+      <el-tag v-if="todayTodos.length > 0" size="small" type="danger" round>{{ todayTodos.length }}</el-tag>
     </div>
 
     <div
