@@ -21,7 +21,8 @@ const state = reactive({
   filter: 'all', // 'all' | 'scheduled-today' | 'due-today' | 'overdue' | 'has-scheduled' | 'has-due'
   sort: 'order', // 'order' | 'scheduled-asc' | 'scheduled-desc' | 'due-asc' | 'due-desc'
   tagFilter: null, // null = all, or a tag string
-  view: 'list', // 'list' | 'calendar' | 'today' | 'weekly-review' | 'search'
+  view: 'list', // 'list' | 'calendar' | 'today' | 'weekly-review' | 'search' | 'change'
+  changeStatusFilter: 'all', // 'all' | 'unscheduled' | 'scheduled' | 'reported' | 'done'
   searchQuery: '',
   hideFutureTodos: false,
 })
@@ -37,6 +38,58 @@ watch(() => state.lists, (val) => {
 watch(() => state.todos, (val) => {
   localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(val))
 }, { deep: true, immediate: true })
+
+// --- Week Code Utilities ---
+function getWeekCode(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
+  const year = d.getUTCFullYear() - 2020
+  return `w${year}${String(weekNo).padStart(2, '0')}`
+}
+
+function parseWeekCode(code) {
+  const match = code.match(/^w(\d+)(\d{2})$/)
+  if (!match) return null
+  const year = parseInt(match[1]) + 2020
+  const week = parseInt(match[2])
+  // Find the Monday of ISO week
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const dayNum = jan4.getUTCDay() || 7
+  const monday = new Date(jan4)
+  monday.setUTCDate(jan4.getUTCDate() - dayNum + 1 + (week - 1) * 7)
+  const sunday = new Date(monday)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
+  const fmt = (d) => {
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(d.getUTCDate()).padStart(2, '0')
+    return `${m}/${dd}`
+  }
+  return { start: fmt(monday), end: fmt(sunday), code }
+}
+
+function getWeekOptions() {
+  const options = []
+  const now = new Date()
+  for (let offset = -2; offset <= 8; offset++) {
+    const d = new Date(now)
+    d.setDate(d.getDate() + offset * 7)
+    const code = getWeekCode(d)
+    const parsed = parseWeekCode(code)
+    if (parsed) {
+      options.push({ value: code, label: `${code}（${parsed.start} - ${parsed.end}）` })
+    }
+  }
+  // Deduplicate
+  const seen = new Set()
+  return options.filter((o) => {
+    if (seen.has(o.value)) return false
+    seen.add(o.value)
+    return true
+  })
+}
 
 export function useStore() {
   // --- Computed ---
@@ -161,6 +214,77 @@ export function useStore() {
       })
   })
 
+  // --- Change ---
+  const changeTodos = computed(() => {
+    let base = state.todos.filter((t) => t.isChange)
+    if (state.changeStatusFilter !== 'all') {
+      base = base.filter((t) => t.changeStatus === state.changeStatusFilter)
+    }
+    return base.sort((a, b) => {
+      if (!a.changeWeek && b.changeWeek) return -1
+      if (a.changeWeek && !b.changeWeek) return 1
+      if (a.changeWeek && b.changeWeek) return b.changeWeek.localeCompare(a.changeWeek)
+      return a.order - b.order
+    })
+  })
+
+  const changeTodoGroups = computed(() => {
+    const groups = {}
+    changeTodos.value.forEach((t) => {
+      const key = t.changeWeek || '__unscheduled__'
+      if (!groups[key]) {
+        groups[key] = { weekCode: t.changeWeek, todos: [] }
+      }
+      groups[key].todos.push(t)
+    })
+    // Sort: unscheduled first, then by week desc
+    const entries = Object.entries(groups)
+    entries.sort(([a], [b]) => {
+      if (a === '__unscheduled__') return -1
+      if (b === '__unscheduled__') return 1
+      return b.localeCompare(a)
+    })
+    return entries.map(([, g]) => g)
+  })
+
+  const changeTodoCount = computed(() => state.todos.filter((t) => t.isChange).length)
+
+  function toggleChange(todoId) {
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo) return
+    if (todo.isChange) {
+      todo.isChange = false
+      todo.changeStatus = null
+      todo.changeWeek = null
+    } else {
+      todo.isChange = true
+      todo.changeStatus = 'unscheduled'
+      todo.changeWeek = null
+    }
+  }
+
+  function updateChangeStatus(todoId, status) {
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo || !todo.isChange) return
+    todo.changeStatus = status
+  }
+
+  function updateChangeWeek(todoId, weekCode) {
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo || !todo.isChange) return
+    todo.changeWeek = weekCode
+    if (todo.changeStatus === 'unscheduled' && weekCode) {
+      todo.changeStatus = 'scheduled'
+    }
+    if (!weekCode && todo.changeStatus === 'scheduled') {
+      todo.changeStatus = 'unscheduled'
+    }
+  }
+
+  function setChangeStatusFilter(filter) {
+    state.changeStatusFilter = filter
+  }
+
   // --- View ---
   function setView(v) {
     state.view = v
@@ -269,6 +393,9 @@ export function useStore() {
       dueDate: null,
       tags: [],
       todayOrder: null,
+      isChange: false,
+      changeStatus: null,
+      changeWeek: null,
       order: 0,
       createdAt: new Date().toISOString(),
     }
@@ -295,6 +422,9 @@ export function useStore() {
       dueDate: null,
       tags: [],
       todayOrder: null,
+      isChange: false,
+      changeStatus: null,
+      changeWeek: null,
       order: insertOrder,
       createdAt: new Date().toISOString(),
     }
@@ -448,6 +578,9 @@ export function useStore() {
     activeListTags,
     allTodosWithDates,
     todayTodos,
+    changeTodos,
+    changeTodoGroups,
+    changeTodoCount,
     addList,
     renameList,
     deleteList,
@@ -469,6 +602,13 @@ export function useStore() {
     toggleHideFutureTodos,
     setSearchQuery,
     moveTodoToList,
+    toggleChange,
+    updateChangeStatus,
+    updateChangeWeek,
+    setChangeStatusFilter,
+    getWeekCode,
+    getWeekOptions,
+    parseWeekCode,
     getNotifications,
     getWeekRange,
     getCompletedInWeek,

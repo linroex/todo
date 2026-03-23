@@ -1,11 +1,23 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useStore } from '../composables/useStore.js'
+
+const { toggleChange, updateChangeStatus, updateChangeWeek, getWeekOptions } = useStore()
 
 const props = defineProps({
   todo: { type: Object, required: true },
 })
 
 const emit = defineEmits(['update'])
+
+const weekOptions = computed(() => getWeekOptions())
+
+const changeStatuses = [
+  { value: 'unscheduled', label: '未安排' },
+  { value: 'scheduled', label: '已安排' },
+  { value: 'reported', label: '已報告' },
+  { value: 'done', label: '已完成' },
+]
 
 const note = computed({
   get: () => props.todo.note,
@@ -90,6 +102,53 @@ function removeTag(tag) {
           class="tag-input"
           @keydown.enter="addTag"
         />
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Change</div>
+      <div class="change-editor">
+        <el-switch
+          :model-value="todo.isChange"
+          @change="toggleChange(todo.id)"
+          active-text="標記為 Change"
+          size="small"
+        />
+        <template v-if="todo.isChange">
+          <div class="change-fields">
+            <div class="change-field">
+              <span class="change-field-label">週次</span>
+              <el-select
+                :model-value="todo.changeWeek"
+                @update:model-value="(val) => updateChangeWeek(todo.id, val)"
+                placeholder="選擇週次"
+                size="small"
+                clearable
+              >
+                <el-option
+                  v-for="opt in weekOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
+              </el-select>
+            </div>
+            <div class="change-field">
+              <span class="change-field-label">狀態</span>
+              <el-select
+                :model-value="todo.changeStatus"
+                @update:model-value="(val) => updateChangeStatus(todo.id, val)"
+                size="small"
+              >
+                <el-option
+                  v-for="s in changeStatuses"
+                  :key="s.value"
+                  :label="s.label"
+                  :value="s.value"
+                />
+              </el-select>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </div>

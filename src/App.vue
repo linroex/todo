@@ -7,6 +7,7 @@ import CalendarView from './components/CalendarView.vue'
 import TodayView from './components/TodayView.vue'
 import WeeklyReviewView from './components/WeeklyReviewView.vue'
 import SearchView from './components/SearchView.vue'
+import ChangeView from './components/ChangeView.vue'
 import { useStore } from './composables/useStore.js'
 
 const { state, getNotifications } = useStore()
@@ -50,4 +51,5 @@ onMounted(() => {
   <CalendarView v-else-if="state.view === 'calendar'" />
   <WeeklyReviewView v-else-if="state.view === 'weekly-review'" />
   <SearchView v-else-if="state.view === 'search'" />
+  <ChangeView v-else-if="state.view === 'change'" />
 </template>

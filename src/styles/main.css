@@ -334,6 +334,70 @@ html, body, #app {
   padding-top: 80px;
 }
 
+/* Change editor in TodoDetail */
+.change-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.change-fields {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.change-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.change-field-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* Change View */
+.change-filter-bar {
+  padding: 0 24px 12px;
+}
+
+.change-group {
+  margin-bottom: 20px;
+}
+
+.change-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+}
+
+.change-result-item {
+  position: relative;
+}
+
+.change-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 8px;
+}
+
+.change-status-tag {
+  cursor: pointer;
+}
+
+.change-item-list {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  flex: 1;
+}
+
 /* Rename input in sidebar */
 .list-rename-input {
   flex: 1;

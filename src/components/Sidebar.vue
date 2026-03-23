@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useStore } from '../composables/useStore.js'
 
-const { state, sortedLists, todayTodos, addList, renameList, deleteList, setActiveList, setView, moveTodoToList } = useStore()
+const { state, sortedLists, todayTodos, changeTodoCount, addList, renameList, deleteList, setActiveList, setView, moveTodoToList } = useStore()
 
 const dragOverListId = ref(null)
 
@@ -107,6 +107,16 @@ function cancelRename() {
     >
       <el-icon :size="16"><Finished /></el-icon>
       <span class="list-name">週報回顧</span>
+    </div>
+
+    <div
+      class="list-item"
+      :class="{ active: state.view === 'change' }"
+      @click="setView('change')"
+    >
+      <el-icon :size="16"><DataBoard /></el-icon>
+      <span class="list-name">Change 追蹤</span>
+      <el-tag v-if="changeTodoCount > 0" size="small" type="warning" round>{{ changeTodoCount }}</el-tag>
     </div>
 
     <div class="sidebar-divider"></div>
