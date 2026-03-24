@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm:*)",
       "Bash(npx vite:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(grep:*)",
+      "Bash(git push:*)"
     ]
   }
 }
