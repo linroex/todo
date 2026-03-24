@@ -3,7 +3,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { state, activeList, activeTodos, hasFutureTodos, futureTodoCount, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, toggleChange, updateChangeStatus, scheduleChangeWeek, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos } = useStore()
+const { state, activeList, activeTodos, hasFutureTodos, futureTodoCount, hasCompletedTodos, completedTodoCount, activeListTags, addTodo, addTodoAfter, updateTodo, deleteTodo, toggleTodo, scheduleToday, toggleChange, updateChangeStatus, scheduleChangeWeek, reorderTodos, setFilter, setSort, setTagFilter, toggleHideFutureTodos, toggleHideCompleted } = useStore()
 
 const dateFilters = ['scheduled-today', 'due-today', 'overdue', 'has-scheduled', 'has-due']
 const showSort = computed(() => dateFilters.includes(state.filter))
@@ -310,8 +310,19 @@ function getDragClass(index, todoId) {
           <el-empty description="沒有待辦事項" />
         </div>
 
-        <div v-if="state.filter === 'all' && hasFutureTodos" class="hide-future-toggle">
+        <div class="todo-toggle-bar">
           <el-button
+            v-if="hasCompletedTodos"
+            size="small"
+            text
+            type="info"
+            @click="toggleHideCompleted"
+          >
+            <el-icon class="el-icon--left"><Hide v-if="!state.hideCompleted" /><View v-else /></el-icon>
+            {{ state.hideCompleted ? '顯示已完成' : '隱藏已完成' }}（{{ completedTodoCount }}）
+          </el-button>
+          <el-button
+            v-if="state.filter === 'all' && hasFutureTodos"
             size="small"
             text
             type="info"

@@ -14,6 +14,8 @@ function loadJSON(key, fallback) {
 
 const defaultList = { id: crypto.randomUUID(), name: '我的清單', order: 0 }
 
+const STORAGE_KEY_HIDE_COMPLETED = 'todo-app-hide-completed'
+
 const state = reactive({
   lists: loadJSON(STORAGE_KEY_LISTS, [defaultList]),
   todos: loadJSON(STORAGE_KEY_TODOS, []),
@@ -25,6 +27,7 @@ const state = reactive({
   changeStatusFilter: 'all', // 'all' | 'unscheduled' | 'scheduled' | 'reported' | 'done'
   searchQuery: '',
   hideFutureTodos: false,
+  hideCompleted: loadJSON(STORAGE_KEY_HIDE_COMPLETED, false),
 })
 
 // Migrate old lowercase week codes to uppercase
@@ -45,6 +48,10 @@ watch(() => state.lists, (val) => {
 watch(() => state.todos, (val) => {
   localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(val))
 }, { deep: true, immediate: true })
+
+watch(() => state.hideCompleted, (val) => {
+  localStorage.setItem(STORAGE_KEY_HIDE_COMPLETED, JSON.stringify(val))
+})
 
 // --- Week Code Utilities ---
 function getWeekCode(date = new Date()) {
@@ -129,6 +136,10 @@ export function useStore() {
         base = base.filter((t) => t.dueDate); break
     }
 
+    if (state.hideCompleted) {
+      base = base.filter((t) => !t.completed)
+    }
+
     if (state.hideFutureTodos && state.filter === 'all') {
       base = base.filter((t) => !t.scheduledDate || t.scheduledDate <= d || t.completed)
     }
@@ -165,6 +176,16 @@ export function useStore() {
     state.hideFutureTodos = !state.hideFutureTodos
   }
 
+  const completedTodoCount = computed(() => {
+    return state.todos.filter((t) => t.listId === state.activeListId && t.completed).length
+  })
+
+  const hasCompletedTodos = computed(() => completedTodoCount.value > 0)
+
+  function toggleHideCompleted() {
+    state.hideCompleted = !state.hideCompleted
+  }
+
   const activeListTags = computed(() => {
     const tags = new Set()
     state.todos
@@ -174,7 +195,7 @@ export function useStore() {
   })
 
   const allTodosWithDates = computed(() =>
-    state.todos.filter((t) => t.scheduledDate || t.dueDate)
+    state.todos.filter((t) => (t.scheduledDate || t.dueDate) && (!state.hideCompleted || !t.completed))
   )
 
   const searchResults = computed(() => {
@@ -183,6 +204,7 @@ export function useStore() {
     const listIds = new Set(state.lists.map((l) => l.id))
     const matched = state.todos.filter((t) => {
       if (!listIds.has(t.listId)) return false
+      if (state.hideCompleted && t.completed) return false
       if (t.title && t.title.toLowerCase().includes(q)) return true
       if (t.note && t.note.toLowerCase().includes(q)) return true
       if (t.tags && t.tags.some((tag) => tag.toLowerCase().includes(q))) return true
@@ -320,7 +342,7 @@ export function useStore() {
 
   function getTodosByDate(dateStr) {
     return state.todos.filter(
-      (t) => t.scheduledDate === dateStr || t.dueDate === dateStr
+      (t) => (t.scheduledDate === dateStr || t.dueDate === dateStr) && (!state.hideCompleted || !t.completed)
     )
   }
 
@@ -602,6 +624,8 @@ export function useStore() {
     activeTodos,
     hasFutureTodos,
     futureTodoCount,
+    hasCompletedTodos,
+    completedTodoCount,
     searchResults,
     activeListTags,
     allTodosWithDates,
@@ -628,6 +652,7 @@ export function useStore() {
     setSort,
     setTagFilter,
     toggleHideFutureTodos,
+    toggleHideCompleted,
     setSearchQuery,
     moveTodoToList,
     toggleChange,

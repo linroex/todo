@@ -320,10 +320,11 @@ html, body, #app {
   margin-bottom: 4px;
 }
 
-/* Hide future toggle */
-.hide-future-toggle {
+/* Toggle bar for hide completed / hide future */
+.todo-toggle-bar {
   display: flex;
   justify-content: center;
+  gap: 8px;
   padding: 8px 0;
 }
 
