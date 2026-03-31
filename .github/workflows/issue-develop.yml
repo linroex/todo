@@ -59,10 +59,8 @@ jobs:
           ISSUE_COMMENTS: ${{ steps.context.outputs.comments }}
           ISSUE_NUMBER: ${{ steps.branch.outputs.issue_number }}
         run: |
-          npx -y @anthropic-ai/claude-code -p \
-            --model claude-sonnet-4-20250514 \
-            --allowedTools "Edit,Write,Read,Glob,Grep,Bash(npm run build)" \
-            "你是開發 agent。請根據以下 Issue 和討論內容，在當前 branch 上實作功能。
+          cat <<PROMPT | npx -y @anthropic-ai/claude-code -p --model claude-sonnet-4-20250514 --allowedTools "Edit,Write,Read,Glob,Grep,Bash(npm run build)"
+          你是開發 agent。請根據以下 Issue 和討論內容，在當前 branch 上實作功能。
 
           Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
@@ -75,7 +73,8 @@ jobs:
           1. 先閱讀 CLAUDE.md 了解專案慣例
           2. 閱讀相關程式碼後再修改
           3. 完成後執行 npm run build 確認建置成功
-          4. 用繁體中文撰寫 commit message"
+          4. 用繁體中文撰寫 commit message
+          PROMPT
 
       - name: Push changes
         env:
