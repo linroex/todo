@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useStore } from '../composables/useStore.js'
 
-const { state, sortedLists, todayTodos, changeTodoCount, addList, renameList, deleteList, setActiveList, setView, moveTodoToList } = useStore()
+const { state, sortedLists, todayTodos, changeTodoCount, getListTodoCount, addList, renameList, deleteList, setActiveList, setView, moveTodoToList } = useStore()
 
 const dragOverListId = ref(null)
 
@@ -149,6 +149,7 @@ function cancelRename() {
 
         <template v-else>
           <span class="list-name">{{ list.name }}</span>
+          <el-tag v-if="getListTodoCount(list.id) > 0" size="small" type="info" round>{{ getListTodoCount(list.id) }}</el-tag>
           <span class="list-actions" @click.stop>
             <el-button
               icon="Edit"
