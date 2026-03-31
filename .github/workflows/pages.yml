@@ -42,6 +42,9 @@ jobs:
           mkdir -p /tmp/main-build
           cp -r dist/* /tmp/main-build/
 
+          # Discard any changes from npm install before switching branches
+          git checkout -- .
+
           # Checkout or create gh-pages branch
           if git fetch origin gh-pages 2>/dev/null; then
             git checkout -B gh-pages origin/gh-pages
