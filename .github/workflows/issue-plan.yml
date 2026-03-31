@@ -34,4 +34,6 @@ jobs:
             5. **注意事項** - 可能的風險或需要討論的問題
 
             請先閱讀 CLAUDE.md 和相關程式碼再回覆。
+            不要修改任何檔案，只需要回覆規劃內容。
           model: claude-sonnet-4-20250514
+          claude_args: --allowedTools "Read,Glob,Grep"

@@ -51,4 +51,6 @@ jobs:
 
             請根據使用者的回饋更新或補充規劃。用繁體中文回覆。
             請先閱讀 CLAUDE.md 和相關程式碼來確保方案可行。
+            不要修改任何檔案，只需要回覆討論內容。
           model: claude-sonnet-4-20250514
+          claude_args: --allowedTools "Read,Glob,Grep"
