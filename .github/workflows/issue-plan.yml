@@ -11,25 +11,46 @@ jobs:
     permissions:
       contents: read
       issues: write
-      id-token: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          trigger_phrase: "plan"
-          prompt: |
-            你是 PM agent。請閱讀這個 GitHub Issue，根據專案的 CLAUDE.md 進行需求分析與規劃。
+      - name: Generate plan
+        id: plan
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          RESULT=$(npx -y @anthropic-ai/claude-code -p \
+            --model claude-sonnet-4-20250514 \
+            --allowedTools "Read,Glob,Grep" \
+            "你是 PM agent。請閱讀以下 GitHub Issue，根據專案的 CLAUDE.md 進行需求分析與規劃。
 
-            請用繁體中文回覆，內容包含：
-            1. **需求理解** - 簡要複述你理解的需求
-            2. **影響範圍** - 需要修改哪些檔案，為什麼
-            3. **實作方案** - 具體的技術方案
-            4. **步驟拆解** - 按順序列出開發步驟
-            5. **注意事項** - 可能的風險或需要討論的問題
+          Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
-            請先閱讀 CLAUDE.md 和相關程式碼再回覆。
-            不要修改任何檔案，只需要回覆規劃內容。
-          claude_args: '--allowedTools "Read,Glob,Grep" --model claude-sonnet-4-20250514'
+          ${ISSUE_BODY}
+
+          請用繁體中文回覆，內容包含：
+          1. **需求理解** - 簡要複述你理解的需求
+          2. **影響範圍** - 需要修改哪些檔案，為什麼
+          3. **實作方案** - 具體的技術方案
+          4. **步驟拆解** - 按順序列出開發步驟
+          5. **注意事項** - 可能的風險或需要討論的問題
+
+          請先閱讀 CLAUDE.md 和相關程式碼再回覆。
+          不要修改任何檔案，只需要回覆規劃內容。")
+
+          EOF_MARKER="PLAN_$(date +%s)"
+          {
+            echo "content<<${EOF_MARKER}"
+            echo "$RESULT"
+            echo "${EOF_MARKER}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post plan to issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "${{ steps.plan.outputs.content }}"

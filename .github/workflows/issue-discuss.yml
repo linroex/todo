@@ -14,19 +14,62 @@ jobs:
     permissions:
       contents: read
       issues: write
-      id-token: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          trigger_phrase: "@claude"
-          prompt: |
-            你是 PM agent，正在與使用者討論 Issue 的規劃。
+      - name: Collect comment history
+        id: history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          COMMENTS=$(gh issue view "$ISSUE_NUMBER" --comments --json comments --jq '[.comments[] | "**" + .author.login + "**: " + .body] | join("\n\n---\n\n")' 2>/dev/null || echo "")
+          EOF_MARKER="HIST_$(date +%s)"
+          {
+            echo "comments<<${EOF_MARKER}"
+            echo "$COMMENTS"
+            echo "${EOF_MARKER}"
+          } >> "$GITHUB_OUTPUT"
 
-            請根據使用者的回饋更新或補充規劃。用繁體中文回覆。
-            請先閱讀 CLAUDE.md 和相關程式碼來確保方案可行。
-            不要修改任何檔案，只需要回覆討論內容。
-          claude_args: '--allowedTools "Read,Glob,Grep" --model claude-sonnet-4-20250514'
+      - name: Generate response
+        id: response
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_COMMENTS: ${{ steps.history.outputs.comments }}
+          LATEST_COMMENT: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          RESULT=$(npx -y @anthropic-ai/claude-code -p \
+            --model claude-sonnet-4-20250514 \
+            --allowedTools "Read,Glob,Grep" \
+            "你是 PM agent，正在與使用者討論 Issue 的規劃。
+
+          Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}
+
+          完整討論紀錄：
+          ${ISSUE_COMMENTS}
+
+          使用者最新的 comment：
+          ${LATEST_COMMENT}
+
+          請根據使用者的回饋更新或補充規劃。用繁體中文回覆。
+          請先閱讀 CLAUDE.md 和相關程式碼來確保方案可行。
+          不要修改任何檔案，只需要回覆討論內容。")
+
+          EOF_MARKER="RESP_$(date +%s)"
+          {
+            echo "content<<${EOF_MARKER}"
+            echo "$RESULT"
+            echo "${EOF_MARKER}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post response to issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "${{ steps.response.outputs.content }}"
