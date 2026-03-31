@@ -3,6 +3,11 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/**'
+      - '.claude/**'
+      - 'CLAUDE.md'
+      - 'README.md'
 
 permissions:
   contents: write
