@@ -19,12 +19,9 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          direct_prompt: |
-            你是 PM agent。請閱讀以下 GitHub Issue，根據專案的 CLAUDE.md 進行需求分析與規劃。
-
-            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
-
-            ${{ github.event.issue.body }}
+          trigger_phrase: "plan"
+          prompt: |
+            你是 PM agent。請閱讀這個 GitHub Issue，根據專案的 CLAUDE.md 進行需求分析與規劃。
 
             請用繁體中文回覆，內容包含：
             1. **需求理解** - 簡要複述你理解的需求
@@ -35,5 +32,4 @@ jobs:
 
             請先閱讀 CLAUDE.md 和相關程式碼再回覆。
             不要修改任何檔案，只需要回覆規劃內容。
-          model: claude-sonnet-4-20250514
-          claude_args: --allowedTools "Read,Glob,Grep"
+          claude_args: '--allowedTools "Read,Glob,Grep" --model claude-sonnet-4-20250514'
