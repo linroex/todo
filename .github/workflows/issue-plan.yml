@@ -18,7 +18,7 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           trigger_phrase: "plan"
           prompt: |
             你是 PM agent。請閱讀這個 GitHub Issue，根據專案的 CLAUDE.md 進行需求分析與規劃。
