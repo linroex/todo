@@ -278,6 +278,10 @@ export function useStore() {
 
   const changeTodoCount = computed(() => state.todos.filter((t) => t.isChange).length)
 
+  function getListTodoCount(listId) {
+    return state.todos.filter((t) => t.listId === listId && !t.completed).length
+  }
+
   function toggleChange(todoId) {
     const todo = state.todos.find((t) => t.id === todoId)
     if (!todo) return
@@ -633,6 +637,7 @@ export function useStore() {
     changeTodos,
     changeTodoGroups,
     changeTodoCount,
+    getListTodoCount,
     addList,
     renameList,
     deleteList,
