@@ -621,6 +621,25 @@ export function useStore() {
       .sort((a, b) => a.completedAt.localeCompare(b.completedAt))
   }
 
+  // --- Move Remaining to Tomorrow ---
+  function moveRemainingToTomorrow() {
+    const d = today.value
+    const tomorrow = new Date(d + 'T00:00:00')
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10)
+
+    const remainingTodos = state.todos.filter((t) =>
+      !t.completed && (t.scheduledDate === d || t.dueDate === d)
+    )
+
+    remainingTodos.forEach((todo) => {
+      todo.scheduledDate = tomorrowStr
+      // Keep dueDate unchanged - only set scheduledDate for those showing via dueDate
+    })
+
+    return remainingTodos.length
+  }
+
   return {
     state,
     sortedLists,
@@ -672,5 +691,6 @@ export function useStore() {
     getNotifications,
     getWeekRange,
     getCompletedInWeek,
+    moveRemainingToTomorrow,
   }
 }
