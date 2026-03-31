@@ -1,0 +1,97 @@
+name: Deploy Preview
+
+on:
+  push:
+    branches:
+      - 'issue-*'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build for preview
+        run: npm run build
+        env:
+          VITE_BASE: /todo/preview/${{ github.ref_name }}/
+
+      - name: Update gh-pages branch
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          PREVIEW_DIR="preview/${BRANCH}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          mkdir -p /tmp/preview-build
+          cp -r dist/* /tmp/preview-build/
+
+          # Checkout gh-pages branch (must exist from main deploy)
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          if git checkout gh-pages 2>/dev/null; then
+            :
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . 2>/dev/null || true
+          fi
+
+          # Update only this preview's directory
+          rm -rf "$PREVIEW_DIR"
+          mkdir -p "$PREVIEW_DIR"
+          cp -r /tmp/preview-build/* "$PREVIEW_DIR/"
+
+          git add -A
+          git diff --cached --quiet && echo "No changes" || {
+            git commit -m "preview: update ${BRANCH}"
+            git push origin gh-pages
+          }
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Comment preview URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          ISSUE_NUMBER="${BRANCH#issue-}"
+          REPO="${{ github.repository }}"
+          OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${REPO#*/}"
+          PREVIEW_URL="https://${OWNER}.github.io/${REPO_NAME}/preview/${BRANCH}/"
+
+          # Switch back to source branch to use gh cli
+          git checkout "$BRANCH" 2>/dev/null || true
+
+          # Only comment on first preview deploy
+          EXISTING=$(gh issue view "$ISSUE_NUMBER" --json comments --jq ".comments[].body" 2>/dev/null | grep -c "預覽連結" || true)
+          if [ "$EXISTING" = "0" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "🔍 預覽連結：${PREVIEW_URL}"
+          fi

@@ -28,6 +28,39 @@ npm run build
 
 產出位於 `dist/` 目錄，可直接部署為靜態網站。
 
+## Issue 驅動開發
+
+透過 GitHub Issue + Label 驅動自動化開發流程。
+
+### 流程
+
+1. **建立 Issue** — 描述需求
+2. **加上 `plan` label** — Claude 自動分析需求，回覆規劃方案到 Issue
+3. **討論** — 在 Issue comment 中 `@claude` 可與 Claude 討論、調整方案
+4. **加上 `approved` label** — Claude 自動建立 branch、開發、建置驗證、開 PR
+5. **Review & Merge** — 人工審查 PR 後合併，Issue 自動關閉
+
+### Labels
+
+| Label | 何時加 | 效果 |
+|-------|--------|------|
+| `plan` | Issue 需求寫好，想讓 Claude 規劃時 | Claude 分析需求並回覆規劃 comment |
+| `approved` | 規劃討論完成，確認可以開發時 | Claude 建立 `issue-<number>` branch 並開始實作，完成後自動開 PR |
+| `in-progress` | （自動）approved 觸發後 | 標記 Issue 正在開發中 |
+| `pr-created` | （自動）PR 合併後 | 標記 Issue 已完成 |
+
+> 草稿 Issue 不需要加任何 label，Claude 不會處理。
+
+### 預覽
+
+每個 feature branch 推送後會自動部署預覽版本：
+
+```
+https://linroex.github.io/todo/preview/issue-<number>/
+```
+
+PR 合併或 branch 刪除後，預覽會自動清理。
+
 ## 技術
 
 - [Vue 3](https://vuejs.org/) (Composition API)

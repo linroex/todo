@@ -1,0 +1,52 @@
+name: Issue Discussion
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  discuss:
+    if: |
+      !github.event.issue.pull_request &&
+      github.event.comment.user.type != 'Bot' &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect comment history
+        id: history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          COMMENTS=$(gh issue view "$ISSUE_NUMBER" --comments --json comments --jq '[.comments[] | "**" + .author.login + "**: " + .body] | join("\n\n---\n\n")' 2>/dev/null || echo "")
+          EOF_MARKER="GHEOF_$(date +%s)"
+          {
+            echo "comments<<${EOF_MARKER}"
+            echo "$COMMENTS"
+            echo "${EOF_MARKER}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            你是 PM agent，正在與使用者討論 Issue 的規劃。
+
+            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+
+            ${{ github.event.issue.body }}
+
+            完整討論紀錄：
+            ${{ steps.history.outputs.comments }}
+
+            使用者最新的 comment：
+            ${{ github.event.comment.body }}
+
+            請根據使用者的回饋更新或補充規劃。用繁體中文回覆。
+            請先閱讀 CLAUDE.md 和相關程式碼來確保方案可行。
+          model: claude-sonnet-4-20250514

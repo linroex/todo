@@ -1,0 +1,83 @@
+name: Cleanup Preview
+
+on:
+  pull_request:
+    types: [closed]
+  delete:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  issues: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: |
+      (github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.ref, 'issue-')) ||
+      (github.event_name == 'delete' && startsWith(github.event.ref, 'issue-'))
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine branch name
+        id: branch
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH="${{ github.event.pull_request.head.ref }}"
+          else
+            BRANCH="${{ github.event.ref }}"
+          fi
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Remove preview from gh-pages
+        id: remove
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          PREVIEW_DIR="preview/${BRANCH}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages:gh-pages 2>/dev/null || { echo "removed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git checkout gh-pages
+
+          if [ -d "$PREVIEW_DIR" ]; then
+            rm -rf "$PREVIEW_DIR"
+            git add -A
+            git commit -m "preview: remove ${BRANCH}"
+            git push origin gh-pages
+            echo "removed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "removed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload pages artifact
+        if: steps.remove.outputs.removed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        if: steps.remove.outputs.removed == 'true'
+        uses: actions/deploy-pages@v4
+
+      - name: Update issue label
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          ISSUE_NUMBER="${BRANCH#issue-}"
+          if [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label "in-progress" --add-label "pr-created" 2>/dev/null || true
+          fi
