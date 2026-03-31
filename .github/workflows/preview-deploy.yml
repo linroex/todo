@@ -30,7 +30,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - run: npm install
 
       - name: Build for preview
         run: npm run build
