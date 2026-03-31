@@ -1,9 +1,10 @@
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { todayTodos, toggleTodo, updateTodo, deleteTodo, scheduleToday, toggleChange, updateChangeStatus, scheduleChangeWeek, reorderTodayTodos } = useStore()
+const { todayTodos, toggleTodo, updateTodo, deleteTodo, scheduleToday, toggleChange, updateChangeStatus, scheduleChangeWeek, reorderTodayTodos, moveRemainingToTomorrow } = useStore()
 
 // --- Selection ---
 const selectedTodoId = ref(null)
@@ -143,11 +144,45 @@ function getDragClass(index, todoId) {
   if (overIndex.value === index && overPosition.value === 'bottom') return 'drag-over-bottom'
   return ''
 }
+
+// --- Move to Tomorrow ---
+const hasRemainingTodos = computed(() => todayTodos.value.length > 0)
+
+async function handleMoveToTomorrow() {
+  if (!hasRemainingTodos.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      `確定要將今日剩餘的 ${todayTodos.value.length} 個待辦事項移動到明天嗎？`,
+      '確認移動',
+      {
+        confirmButtonText: '確定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    const movedCount = moveRemainingToTomorrow()
+    ElMessage.success(`已將 ${movedCount} 個待辦事項移動至明天`)
+  } catch {
+    // User cancelled, do nothing
+  }
+}
 </script>
 
 <template>
   <div class="main-content">
-    <div class="main-header">今日待辦</div>
+    <div class="main-header">
+      <span>今日待辦</span>
+      <el-button
+        v-if="hasRemainingTodos"
+        type="primary"
+        size="small"
+        @click="handleMoveToTomorrow"
+      >
+        剩餘全部延至明天
+      </el-button>
+    </div>
 
     <div
       class="todo-container"
