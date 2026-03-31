@@ -351,6 +351,10 @@ export function useStore() {
     return list ? list.name : ''
   }
 
+  function getListTodoCount(listId) {
+    return state.todos.filter((t) => t.listId === listId && !t.completed).length
+  }
+
   // --- Schedule Today ---
   function scheduleToday(todoId) {
     const todo = state.todos.find((t) => t.id === todoId)
@@ -640,6 +644,7 @@ export function useStore() {
     setView,
     getTodosByDate,
     getListName,
+    getListTodoCount,
     addTodo,
     addTodoAfter,
     updateTodo,
