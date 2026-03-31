@@ -30,7 +30,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm install --force
+      - run: npm ci
 
       - name: Build for preview
         run: npm run build
@@ -47,9 +47,6 @@ jobs:
 
           mkdir -p /tmp/preview-build
           cp -r dist/* /tmp/preview-build/
-
-          # Discard any changes from npm install before switching branches
-          git checkout -- .
 
           # Checkout or create gh-pages branch
           if git fetch origin gh-pages 2>/dev/null; then

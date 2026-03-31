@@ -29,7 +29,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm install --force
+      - run: npm ci
       - run: npm run build
         env:
           VITE_BASE: /todo/
@@ -41,9 +41,6 @@ jobs:
 
           mkdir -p /tmp/main-build
           cp -r dist/* /tmp/main-build/
-
-          # Discard any changes from npm install before switching branches
-          git checkout -- .
 
           # Checkout or create gh-pages branch
           if git fetch origin gh-pages 2>/dev/null; then

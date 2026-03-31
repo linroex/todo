@@ -25,7 +25,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm install --force
+      - run: npm ci
 
       - name: Create feature branch
         id: branch
