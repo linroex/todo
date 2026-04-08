@@ -243,6 +243,26 @@ export function useStore() {
       })
   })
 
+  const yesterdayTodos = computed(() => {
+    const yesterday = new Date(today.value + 'T00:00:00')
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+    return state.todos
+      .filter((t) => !t.completed && (t.scheduledDate === yesterdayStr || t.dueDate === yesterdayStr))
+      .sort((a, b) => a.order - b.order)
+  })
+
+  const tomorrowTodos = computed(() => {
+    const tomorrow = new Date(today.value + 'T00:00:00')
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10)
+
+    return state.todos
+      .filter((t) => (t.scheduledDate === tomorrowStr || t.dueDate === tomorrowStr))
+      .sort((a, b) => a.order - b.order)
+  })
+
   // --- Change ---
   const changeTodos = computed(() => {
     let base = state.todos.filter((t) => t.isChange)
@@ -640,6 +660,20 @@ export function useStore() {
     return remainingTodos.length
   }
 
+  // --- Cross-Date Move ---
+  function moveTodoToDate(todoId, targetDateOffset) {
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo) return
+
+    const baseDate = new Date(today.value + 'T00:00:00')
+    baseDate.setDate(baseDate.getDate() + targetDateOffset)
+    const targetDateStr = baseDate.toISOString().slice(0, 10)
+
+    // If moving to today, keep or set scheduledDate
+    // If moving to other days, set scheduledDate (keep dueDate unchanged)
+    updateTodo(todoId, { scheduledDate: targetDateStr })
+  }
+
   return {
     state,
     sortedLists,
@@ -653,6 +687,8 @@ export function useStore() {
     activeListTags,
     allTodosWithDates,
     todayTodos,
+    yesterdayTodos,
+    tomorrowTodos,
     changeTodos,
     changeTodoGroups,
     changeTodoCount,
@@ -692,5 +728,6 @@ export function useStore() {
     getWeekRange,
     getCompletedInWeek,
     moveRemainingToTomorrow,
+    moveTodoToDate,
   }
 }

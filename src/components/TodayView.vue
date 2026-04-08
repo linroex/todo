@@ -4,10 +4,11 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { useStore } from '../composables/useStore.js'
 import TodoItem from './TodoItem.vue'
 
-const { todayTodos, toggleTodo, updateTodo, deleteTodo, scheduleToday, toggleChange, updateChangeStatus, scheduleChangeWeek, reorderTodayTodos, moveRemainingToTomorrow } = useStore()
+const { todayTodos, yesterdayTodos, tomorrowTodos, toggleTodo, updateTodo, deleteTodo, scheduleToday, toggleChange, updateChangeStatus, scheduleChangeWeek, reorderTodayTodos, moveRemainingToTomorrow, moveTodoToDate } = useStore()
 
 // --- Selection ---
 const selectedTodoId = ref(null)
+const selectedSection = ref('today') // 'yesterday' | 'today' | 'tomorrow'
 const todoItemRefs = ref({})
 
 function setItemRef(id, el) {
@@ -20,28 +21,45 @@ function setItemRef(id, el) {
 
 function selectTodo(id) {
   selectedTodoId.value = selectedTodoId.value === id ? null : id
+  // Determine which section this todo belongs to
+  if (selectedTodoId.value) {
+    if (yesterdayTodos.value.some(t => t.id === id)) selectedSection.value = 'yesterday'
+    else if (todayTodos.value.some(t => t.id === id)) selectedSection.value = 'today'
+    else if (tomorrowTodos.value.some(t => t.id === id)) selectedSection.value = 'tomorrow'
+  }
+}
+
+function getAllTodosInOrder() {
+  return [
+    ...yesterdayTodos.value.map(t => ({ ...t, section: 'yesterday' })),
+    ...todayTodos.value.map(t => ({ ...t, section: 'today' })),
+    ...tomorrowTodos.value.map(t => ({ ...t, section: 'tomorrow' }))
+  ]
 }
 
 function moveSelection(direction) {
-  const todos = todayTodos.value
-  if (todos.length === 0) return
-  const currentIndex = todos.findIndex((t) => t.id === selectedTodoId.value)
+  const allTodos = getAllTodosInOrder()
+  if (allTodos.length === 0) return
+
+  const currentIndex = allTodos.findIndex((t) => t.id === selectedTodoId.value)
   let newIndex
   if (currentIndex === -1) {
-    newIndex = direction === 'up' ? todos.length - 1 : 0
+    newIndex = direction === 'up' ? allTodos.length - 1 : 0
   } else {
     newIndex = currentIndex + (direction === 'up' ? -1 : 1)
-    if (newIndex < 0 || newIndex >= todos.length) return
+    if (newIndex < 0 || newIndex >= allTodos.length) return
   }
-  const newId = todos[newIndex].id
-  selectedTodoId.value = newId
+
+  const newTodo = allTodos[newIndex]
+  selectedTodoId.value = newTodo.id
+  selectedSection.value = newTodo.section
   nextTick(() => {
-    todoItemRefs.value[newId]?.focus()
+    todoItemRefs.value[newTodo.id]?.focus()
   })
 }
 
 function reorderSelected(direction) {
-  if (!selectedTodoId.value) return
+  if (!selectedTodoId.value || selectedSection.value !== 'today') return
   const todos = todayTodos.value
   const currentIndex = todos.findIndex((t) => t.id === selectedTodoId.value)
   if (currentIndex === -1) return
@@ -77,16 +95,19 @@ function handleContainerKeydown(e) {
     todoItemRefs.value[selectedTodoId.value]?.startEdit()
   } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTodoId.value) {
     e.preventDefault()
-    const todos = todayTodos.value
-    const currentIndex = todos.findIndex((t) => t.id === selectedTodoId.value)
+    const allTodos = getAllTodosInOrder()
+    const currentIndex = allTodos.findIndex((t) => t.id === selectedTodoId.value)
     deleteTodo(selectedTodoId.value)
-    const remaining = todayTodos.value
-    if (remaining.length > 0) {
-      const newIndex = Math.min(currentIndex, remaining.length - 1)
-      selectedTodoId.value = remaining[newIndex].id
+    const remainingTodos = getAllTodosInOrder()
+    if (remainingTodos.length > 0) {
+      const newIndex = Math.min(currentIndex, remainingTodos.length - 1)
+      const newTodo = remainingTodos[newIndex]
+      selectedTodoId.value = newTodo.id
+      selectedSection.value = newTodo.section
       nextTick(() => { todoItemRefs.value[selectedTodoId.value]?.focus() })
     } else {
       selectedTodoId.value = null
+      selectedSection.value = 'today'
     }
   }
 }
@@ -94,25 +115,42 @@ function handleContainerKeydown(e) {
 // --- Drag & Drop ---
 const dragTodoId = ref(null)
 const dragIndex = ref(-1)
+const dragSourceDate = ref('') // 'yesterday' | 'today' | 'tomorrow'
 const overIndex = ref(-1)
 const overPosition = ref('')
+const overDate = ref('') // 'yesterday' | 'today' | 'tomorrow'
 
-function onDragStart(index, todoId) {
+function onDragStart(index, todoId, dateType) {
   dragIndex.value = index
   dragTodoId.value = todoId
+  dragSourceDate.value = dateType
 }
 
-function onDragEnter(index, e) {
+function onDragEnter(index, e, dateType) {
   if (dragIndex.value === -1) return
   overIndex.value = index
+  overDate.value = dateType
   const rect = e.currentTarget.closest('.todo-item').getBoundingClientRect()
   const midY = rect.top + rect.height / 2
   overPosition.value = e.clientY < midY ? 'top' : 'bottom'
 }
 
+function onDragEnterZone(e, dateType) {
+  if (dragIndex.value === -1) return
+  overDate.value = dateType
+  overIndex.value = -1 // No specific item target, just zone
+}
+
 function onDragEnd() {
-  const stillHere = dragTodoId.value && todayTodos.value.some((t) => t.id === dragTodoId.value)
-  if (stillHere && dragIndex.value !== -1 && overIndex.value !== -1) {
+  if (!dragTodoId.value) return
+
+  // Check if we're moving between different dates
+  if (overDate.value && overDate.value !== dragSourceDate.value) {
+    // Cross-date move
+    const dateOffset = overDate.value === 'yesterday' ? -1 : overDate.value === 'tomorrow' ? 1 : 0
+    moveTodoToDate(dragTodoId.value, dateOffset)
+  } else if (dragSourceDate.value === 'today' && overIndex.value !== -1 && overIndex.value !== dragIndex.value) {
+    // Same-day reorder for today only (preserve existing behavior)
     let toIndex = overIndex.value
     if (overPosition.value === 'bottom' && toIndex < dragIndex.value) {
       toIndex++
@@ -121,14 +159,17 @@ function onDragEnd() {
     }
     reorderTodayTodos(dragIndex.value, toIndex)
   }
+
   resetDragState()
 }
 
 function resetDragState() {
   dragTodoId.value = null
   dragIndex.value = -1
+  dragSourceDate.value = ''
   overIndex.value = -1
   overPosition.value = ''
+  overDate.value = ''
 }
 
 onMounted(() => {
@@ -138,10 +179,11 @@ onUnmounted(() => {
   document.removeEventListener('dragend', resetDragState)
 })
 
-function getDragClass(index, todoId) {
-  if (dragIndex.value === index && dragTodoId.value === todoId) return 'dragging'
-  if (overIndex.value === index && overPosition.value === 'top') return 'drag-over-top'
-  if (overIndex.value === index && overPosition.value === 'bottom') return 'drag-over-bottom'
+function getDragClass(index, todoId, dateType) {
+  if (dragIndex.value === index && dragTodoId.value === todoId && dragSourceDate.value === dateType) return 'dragging'
+  if (overIndex.value === index && overDate.value === dateType && overPosition.value === 'top') return 'drag-over-top'
+  if (overIndex.value === index && overDate.value === dateType && overPosition.value === 'bottom') return 'drag-over-bottom'
+  if (overDate.value === dateType && overIndex.value === -1) return 'drag-over-zone'
   return ''
 }
 
@@ -173,7 +215,7 @@ async function handleMoveToTomorrow() {
 <template>
   <div class="main-content">
     <div class="main-header">
-      <span>今日待辦</span>
+      <span>待處理事項</span>
       <el-button
         v-if="hasRemainingTodos"
         type="primary"
@@ -185,37 +227,116 @@ async function handleMoveToTomorrow() {
     </div>
 
     <div
-      class="todo-container"
-      v-if="todayTodos.length > 0"
+      class="multi-day-container"
       tabindex="-1"
       @dragover.prevent
       @click.self="selectedTodoId = null"
       @keydown="handleContainerKeydown"
     >
-      <TodoItem
-        v-for="(todo, index) in todayTodos"
-        :key="todo.id"
-        :ref="(el) => setItemRef(todo.id, el)"
-        :todo="todo"
-        :selected="selectedTodoId === todo.id"
-        :show-dates="false"
-        :class="getDragClass(index, todo.id)"
-        @select="selectTodo(todo.id)"
-        @toggle="toggleTodo(todo.id)"
-        @update="(updates) => updateTodo(todo.id, updates)"
-        @delete="deleteTodo(todo.id)"
-        @schedule-today="scheduleToday(todo.id)"
-        @toggle-change="toggleChange(todo.id)"
-        @update-change-status="(s) => updateChangeStatus(todo.id, s)"
-        @schedule-change-week="(week) => scheduleChangeWeek(todo.id, week)"
-        @dragstart="onDragStart(index, todo.id)"
-        @dragenter="(e) => onDragEnter(index, e)"
-        @dragend="onDragEnd"
-      />
-    </div>
+      <!-- 左上：昨日未完成 -->
+      <div class="yesterday-section">
+        <h3 class="section-title">昨日未完成 ({{ yesterdayTodos.length }})</h3>
+        <div
+          class="section-content yesterday"
+          @dragover.prevent
+          @dragenter="(e) => onDragEnterZone(e, 'yesterday')"
+        >
+          <div v-if="yesterdayTodos.length === 0" class="empty-section">
+            無未完成事項
+          </div>
+          <TodoItem
+            v-else
+            v-for="(todo, index) in yesterdayTodos"
+            :key="todo.id"
+            :ref="(el) => setItemRef(todo.id, el)"
+            :todo="todo"
+            :selected="selectedTodoId === todo.id"
+            :show-dates="false"
+            :class="getDragClass(index, todo.id, 'yesterday')"
+            @select="selectTodo(todo.id)"
+            @toggle="toggleTodo(todo.id)"
+            @update="(updates) => updateTodo(todo.id, updates)"
+            @delete="deleteTodo(todo.id)"
+            @schedule-today="scheduleToday(todo.id)"
+            @toggle-change="toggleChange(todo.id)"
+            @update-change-status="(s) => updateChangeStatus(todo.id, s)"
+            @schedule-change-week="(week) => scheduleChangeWeek(todo.id, week)"
+            @dragstart="onDragStart(index, todo.id, 'yesterday')"
+            @dragenter="(e) => onDragEnter(index, e, 'yesterday')"
+            @dragend="onDragEnd"
+          />
+        </div>
+      </div>
 
-    <div v-else class="empty-state">
-      <el-empty description="今天沒有待辦事項" />
+      <!-- 右上：明日事項 -->
+      <div class="tomorrow-section">
+        <h3 class="section-title">明日待辦 ({{ tomorrowTodos.length }})</h3>
+        <div
+          class="section-content tomorrow"
+          @dragover.prevent
+          @dragenter="(e) => onDragEnterZone(e, 'tomorrow')"
+        >
+          <div v-if="tomorrowTodos.length === 0" class="empty-section">
+            無待辦事項
+          </div>
+          <TodoItem
+            v-else
+            v-for="(todo, index) in tomorrowTodos"
+            :key="todo.id"
+            :ref="(el) => setItemRef(todo.id, el)"
+            :todo="todo"
+            :selected="selectedTodoId === todo.id"
+            :show-dates="false"
+            :class="getDragClass(index, todo.id, 'tomorrow')"
+            @select="selectTodo(todo.id)"
+            @toggle="toggleTodo(todo.id)"
+            @update="(updates) => updateTodo(todo.id, updates)"
+            @delete="deleteTodo(todo.id)"
+            @schedule-today="scheduleToday(todo.id)"
+            @toggle-change="toggleChange(todo.id)"
+            @update-change-status="(s) => updateChangeStatus(todo.id, s)"
+            @schedule-change-week="(week) => scheduleChangeWeek(todo.id, week)"
+            @dragstart="onDragStart(index, todo.id, 'tomorrow')"
+            @dragenter="(e) => onDragEnter(index, e, 'tomorrow')"
+            @dragend="onDragEnd"
+          />
+        </div>
+      </div>
+
+      <!-- 下方大塊：今日主體 -->
+      <div class="today-section">
+        <h3 class="section-title">今日待辦 ({{ todayTodos.length }})</h3>
+        <div
+          class="section-content today"
+          @dragover.prevent
+          @dragenter="(e) => onDragEnterZone(e, 'today')"
+        >
+          <div v-if="todayTodos.length === 0" class="empty-section">
+            今天沒有待辦事項
+          </div>
+          <TodoItem
+            v-else
+            v-for="(todo, index) in todayTodos"
+            :key="todo.id"
+            :ref="(el) => setItemRef(todo.id, el)"
+            :todo="todo"
+            :selected="selectedTodoId === todo.id"
+            :show-dates="false"
+            :class="getDragClass(index, todo.id, 'today')"
+            @select="selectTodo(todo.id)"
+            @toggle="toggleTodo(todo.id)"
+            @update="(updates) => updateTodo(todo.id, updates)"
+            @delete="deleteTodo(todo.id)"
+            @schedule-today="scheduleToday(todo.id)"
+            @toggle-change="toggleChange(todo.id)"
+            @update-change-status="(s) => updateChangeStatus(todo.id, s)"
+            @schedule-change-week="(week) => scheduleChangeWeek(todo.id, week)"
+            @dragstart="onDragStart(index, todo.id, 'today')"
+            @dragenter="(e) => onDragEnter(index, e, 'today')"
+            @dragend="onDragEnd"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
