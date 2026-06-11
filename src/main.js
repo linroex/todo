@@ -9,6 +9,7 @@ dayjs.extend(updateLocale)
 dayjs.updateLocale('en', { weekStart: 1 })
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
+import { initStore } from './composables/useStore.js'
 import './styles/main.css'
 
 const app = createApp(App)
@@ -16,4 +17,8 @@ app.use(ElementPlus, { locale: zhTw })
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
-app.mount('#app')
+
+// 先完成 IndexedDB 遷移與載入，再掛載 App，確保畫面拿到的是已載入的狀態
+initStore().finally(() => {
+  app.mount('#app')
+})

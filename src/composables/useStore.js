@@ -1,24 +1,17 @@
 import { reactive, ref, watch, computed } from 'vue'
-
-const STORAGE_KEY_LISTS = 'todo-app-lists'
-const STORAGE_KEY_TODOS = 'todo-app-todos'
-
-function loadJSON(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
+import { idbGet, idbSet, STORAGE_KEYS } from './db.js'
+import { migrateFromLocalStorage } from './migrate.js'
 
 const defaultList = { id: crypto.randomUUID(), name: '我的清單', order: 0 }
 
-const STORAGE_KEY_HIDE_COMPLETED = 'todo-app-hide-completed'
+// 深拷貝成純物件，避免把 Vue reactive proxy 直接寫入 IndexedDB
+function snapshot(val) {
+  return JSON.parse(JSON.stringify(val))
+}
 
 const state = reactive({
-  lists: loadJSON(STORAGE_KEY_LISTS, [defaultList]),
-  todos: loadJSON(STORAGE_KEY_TODOS, []),
+  lists: [defaultList],
+  todos: [],
   activeListId: null,
   filter: 'all', // 'all' | 'scheduled-today' | 'due-today' | 'overdue' | 'has-scheduled' | 'has-due'
   sort: 'order', // 'order' | 'scheduled-asc' | 'scheduled-desc' | 'due-asc' | 'due-desc'
@@ -27,31 +20,65 @@ const state = reactive({
   changeStatusFilter: 'all', // 'all' | 'unscheduled' | 'scheduled' | 'reported' | 'done'
   searchQuery: '',
   hideFutureTodos: false,
-  hideCompleted: loadJSON(STORAGE_KEY_HIDE_COMPLETED, false),
+  hideCompleted: false,
 })
 
-// Migrate old lowercase week codes to uppercase
-state.todos.forEach((t) => {
-  if (t.changeWeek && t.changeWeek.startsWith('w')) {
-    t.changeWeek = 'W' + t.changeWeek.slice(1)
-  }
-})
+// initError: 載入失敗（例如環境不支援 IndexedDB）時記錄錯誤，供畫面提示
+const initError = ref(null)
 
-// Initialize activeListId
-state.activeListId = state.lists.length > 0 ? state.lists[0].id : null
+let initPromise = null
 
-// Persist to localStorage
-watch(() => state.lists, (val) => {
-  localStorage.setItem(STORAGE_KEY_LISTS, JSON.stringify(val))
-}, { deep: true, immediate: true })
+// 啟動時呼叫：先執行 localStorage -> IndexedDB 遷移，再從 IndexedDB 載入狀態，
+// 最後掛上 watcher 將後續變更同步回 IndexedDB。
+export function initStore() {
+  if (initPromise) return initPromise
+  initPromise = (async () => {
+    try {
+      // 自動遷移 + 備份 + cleanup（已遷移過會自行略過）
+      await migrateFromLocalStorage()
 
-watch(() => state.todos, (val) => {
-  localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(val))
-}, { deep: true, immediate: true })
+      const [lists, todos, hideCompleted] = await Promise.all([
+        idbGet(STORAGE_KEYS.lists),
+        idbGet(STORAGE_KEYS.todos),
+        idbGet(STORAGE_KEYS.hideCompleted),
+      ])
 
-watch(() => state.hideCompleted, (val) => {
-  localStorage.setItem(STORAGE_KEY_HIDE_COMPLETED, JSON.stringify(val))
-})
+      state.lists = Array.isArray(lists) && lists.length > 0 ? lists : [defaultList]
+      state.todos = Array.isArray(todos) ? todos : []
+      state.hideCompleted = typeof hideCompleted === 'boolean' ? hideCompleted : false
+
+      // Migrate old lowercase week codes to uppercase
+      state.todos.forEach((t) => {
+        if (t.changeWeek && t.changeWeek.startsWith('w')) {
+          t.changeWeek = 'W' + t.changeWeek.slice(1)
+        }
+      })
+
+      // Initialize activeListId
+      state.activeListId = state.lists.length > 0 ? state.lists[0].id : null
+
+      // Persist to IndexedDB（載入成功後才掛 watcher，避免覆寫尚未讀到的資料）
+      watch(() => state.lists, (val) => {
+        idbSet(STORAGE_KEYS.lists, snapshot(val))
+      }, { deep: true })
+
+      watch(() => state.todos, (val) => {
+        idbSet(STORAGE_KEYS.todos, snapshot(val))
+      }, { deep: true })
+
+      watch(() => state.hideCompleted, (val) => {
+        idbSet(STORAGE_KEYS.hideCompleted, val)
+      })
+
+    } catch (e) {
+      // IndexedDB 無法使用時，不掛 watcher（避免把預設值寫掉），
+      // 僅記錄錯誤讓畫面仍可顯示，但提示資料無法持久化
+      initError.value = e
+      console.error('[store] 初始化失敗，資料將無法儲存', e)
+    }
+  })()
+  return initPromise
+}
 
 // --- Week Code Utilities ---
 function getWeekCode(date = new Date()) {
@@ -642,6 +669,7 @@ export function useStore() {
 
   return {
     state,
+    initError,
     sortedLists,
     activeList,
     activeTodos,

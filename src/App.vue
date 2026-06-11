@@ -10,9 +10,18 @@ import SearchView from './components/SearchView.vue'
 import ChangeView from './components/ChangeView.vue'
 import { useStore } from './composables/useStore.js'
 
-const { state, getNotifications } = useStore()
+const { state, getNotifications, initError } = useStore()
 
 onMounted(() => {
+  if (initError.value) {
+    ElNotification({
+      title: '資料無法儲存',
+      message: '此環境無法使用 IndexedDB，您的變更將不會被保存',
+      type: 'error',
+      duration: 0,
+    })
+  }
+
   const { overdue, dueToday, scheduledToday } = getNotifications()
 
   if (overdue.length > 0) {
